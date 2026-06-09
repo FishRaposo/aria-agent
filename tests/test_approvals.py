@@ -1,4 +1,4 @@
-from hermes.approvals import ApprovalGate
+from aria_agent.approvals import ApprovalGate
 
 
 class TestApprovalGate:

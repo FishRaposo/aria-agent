@@ -6,7 +6,7 @@ from shared_core.health import check_health
 from shared_core.logging import setup_logging
 from shared_core.redis import RedisManager
 
-from .agents import HermesAgent
+from .agents import AriaAgent
 from .approvals import ApprovalGate
 from .config import AppConfig
 from .costs import CostTracker
@@ -48,7 +48,7 @@ registry.register("email_draft", EmailDraftInput)(email_draft)
 
 gate = ApprovalGate()
 cost_tracker = CostTracker()
-agent = HermesAgent(registry, gate, max_steps=5)
+agent = AriaAgent(registry, gate, max_steps=5)
 
 _run_history: dict[str, dict] = {}
 

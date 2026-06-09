@@ -1,6 +1,6 @@
-from hermes.agents import HermesAgent
-from hermes.approvals import ApprovalGate
-from hermes.tools import ToolRegistry
+from aria_agent.agents import AriaAgent
+from aria_agent.approvals import ApprovalGate
+from aria_agent.tools import ToolRegistry
 from pydantic import BaseModel
 
 
@@ -18,18 +18,18 @@ def make_registry_with_calc():
     return reg
 
 
-class TestHermesAgent:
+class TestAriaAgent:
     def test_run_matches_calculator_tool(self):
         reg = make_registry_with_calc()
         gate = ApprovalGate(enabled=True)
-        agent = HermesAgent(reg, gate)
+        agent = AriaAgent(reg, gate)
         result = agent.run("calculate 2 + 2")
         assert "Result" in result or "Error" in result
 
     def test_run_no_tool_match(self):
         reg = make_registry_with_calc()
         gate = ApprovalGate(enabled=True)
-        agent = HermesAgent(reg, gate)
+        agent = AriaAgent(reg, gate)
         result = agent.run("Hello, how are you?")
         assert isinstance(result, str)
         assert len(result) > 0
@@ -37,21 +37,21 @@ class TestHermesAgent:
     def test_run_empty_query(self):
         reg = make_registry_with_calc()
         gate = ApprovalGate(enabled=True)
-        agent = HermesAgent(reg, gate)
+        agent = AriaAgent(reg, gate)
         result = agent.run("")
         assert isinstance(result, str)
 
     def test_run_with_disabled_approval(self):
         reg = make_registry_with_calc()
         gate = ApprovalGate(enabled=False)
-        agent = HermesAgent(reg, gate)
+        agent = AriaAgent(reg, gate)
         result = agent.run("calculate 5 + 3")
         assert isinstance(result, str)
 
     def test_memory_tracks_user_query(self):
         reg = make_registry_with_calc()
         gate = ApprovalGate(enabled=True)
-        agent = HermesAgent(reg, gate)
+        agent = AriaAgent(reg, gate)
         agent.run("calculate 1 + 1")
         assert len(agent.memory.messages) >= 1
         assert agent.memory.messages[0]["role"] == "user"

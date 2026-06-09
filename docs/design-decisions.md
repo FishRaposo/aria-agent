@@ -35,7 +35,7 @@ This document records the key architectural choices made during the development 
 
 ## Decision 4: Human Approval Gates as a First-Class Concept
 
-- **Context**: In production agent systems, certain tool calls are high-risk (sending emails, creating tasks, modifying files). Allowing an LLM to execute these without human oversight is unacceptable for most enterprise deployments. Many agent frameworks treat approval as an afterthought or plugin — Hermes makes it a core architectural concept.
+- **Context**: In production agent systems, certain tool calls are high-risk (sending emails, creating tasks, modifying files). Allowing an LLM to execute these without human oversight is unacceptable for most enterprise deployments. Many agent frameworks treat approval as an afterthought or plugin — Aria makes it a core architectural concept.
 - **Options**:
   1. No approval — trust the agent to make correct decisions.
   2. Global enable/disable flag for all tool calls.
@@ -62,7 +62,7 @@ This document records the key architectural choices made during the development 
   1. LLM-based tool selection from day one (requires API keys).
   2. Rule-based / keyword matching as a placeholder.
   3. Embedding similarity between user query and tool descriptions.
-- **Choice**: Option 2 — `if "calculate" in user_query.lower()` in `HermesAgent.run()`.
+- **Choice**: Option 2 — `if "calculate" in user_query.lower()` in `AriaAgent.run()`.
 - **Tradeoff**: The demo works without any external API keys, which is critical for a portfolio project that reviewers should be able to run immediately. The keyword matching is clearly a placeholder — it handles exactly one tool and one keyword. The `run()` method is designed to be replaced with LLM-based routing without changing the tool registry, approval gate, or memory interfaces. This intentional separation of concerns is itself a design demonstration.
 
 ## Decision 7: Celery for Background Tool Execution

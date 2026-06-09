@@ -7,15 +7,15 @@ def test_health_endpoint():
     mock_redis.ping.return_value = True
 
     with (
-        patch("hermes.main.db_manager", mock_db),
-        patch("hermes.main.redis_manager", mock_redis),
-        patch("hermes.main.registry", MagicMock()),
-        patch("hermes.main.gate", MagicMock()),
-        patch("hermes.main.agent", MagicMock()),
+        patch("aria_agent.main.db_manager", mock_db),
+        patch("aria_agent.main.redis_manager", mock_redis),
+        patch("aria_agent.main.registry", MagicMock()),
+        patch("aria_agent.main.gate", MagicMock()),
+        patch("aria_agent.main.agent", MagicMock()),
     ):
         from fastapi.testclient import TestClient
 
-        from hermes.main import app
+        from aria_agent.main import app
 
         with TestClient(app) as client:
             response = client.get("/health")

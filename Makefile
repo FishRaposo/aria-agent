@@ -5,7 +5,7 @@ install: ## Install shared-core and project dependencies
 	pip install -r requirements.txt
 
 dev: ## Start the FastAPI development server
-	python src/hermes/main.py
+	python src/aria_agent/main.py
 
 test: ## Run unit tests with pytest
 	pytest
@@ -29,7 +29,7 @@ demo: ## Run the demonstration script
 	python examples/run_demo.py
 
 worker: ## Start the Celery worker
-	celery -A src.hermes.worker worker --loglevel=info
+	celery -A src.aria_agent.worker worker --loglevel=info
 
 clean: ## Remove caches and temporary files
 	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]; shutil.rmtree('.pytest_cache', ignore_errors=True); shutil.rmtree('.ruff_cache', ignore_errors=True)"

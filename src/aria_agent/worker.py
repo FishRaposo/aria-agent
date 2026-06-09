@@ -13,12 +13,12 @@ celery_app = create_celery_app(
 @celery_app.task
 def run_agent_task(user_query: str, session_id: str = "") -> dict:
     """Async task: run agent with tool execution."""
-    from .agents import HermesAgent
+    from .agents import AriaAgent
     from .approvals import ApprovalGate
     from .tools import ToolRegistry
 
     registry = ToolRegistry()
     gate = ApprovalGate()
-    agent = HermesAgent(registry, gate)
+    agent = AriaAgent(registry, gate)
     response = agent.run(user_query)
     return {"session_id": session_id, "response": response}

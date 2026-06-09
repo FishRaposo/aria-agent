@@ -14,7 +14,7 @@ def client():
         patch("shared_core.redis.RedisManager.__init__", return_value=None),
         patch("shared_core.logging.setup_logging"),
     ):
-        from hermes.main import app
+        from aria_agent.main import app
         app.dependency_overrides = {}
         return TestClient(app)
 

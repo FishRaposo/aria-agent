@@ -1,4 +1,4 @@
-from hermes.memory import AgentMemory
+from aria_agent.memory import AgentMemory
 
 
 class TestAgentMemory:

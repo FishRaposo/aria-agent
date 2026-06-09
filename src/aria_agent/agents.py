@@ -7,7 +7,7 @@ from .memory import AgentMemory
 from .tools import ToolRegistry
 
 
-class HermesAgent:
+class AriaAgent:
     """Runs the central reason-and-act loop with tool execution constraints."""
 
     def __init__(

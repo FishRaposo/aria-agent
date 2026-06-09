@@ -4,7 +4,7 @@ This document describes the architectural layout, component interactions, and da
 
 ## System Overview
 
-Aria Agent is a FastAPI-based agent framework where a central `HermesAgent` orchestrates a reason-and-act loop. When a user sends a message to `POST /agent/chat`, the agent determines which tool to invoke, passes the call through an `ApprovalGate` for human review, validates parameters against a Pydantic schema via the `ToolRegistry`, executes the tool, stores the result in `AgentMemory`, and returns a formatted response.
+Aria Agent is a FastAPI-based agent framework where a central `AriaAgent` orchestrates a reason-and-act loop. When a user sends a message to `POST /agent/chat`, the agent determines which tool to invoke, passes the call through an `ApprovalGate` for human review, validates parameters against a Pydantic schema via the `ToolRegistry`, executes the tool, stores the result in `AgentMemory`, and returns a formatted response.
 
 The system is designed around three safety principles:
 1. **No tool executes without schema validation** — `ToolRegistry.call_tool()` instantiates the tool's Pydantic model with the provided arguments before calling the function
@@ -15,20 +15,20 @@ The system is designed around three safety principles:
 
 | Module | File | Responsibility |
 |--------|------|----------------|
-| **API Gateway** | `src/hermes/main.py` | FastAPI app, endpoint routing, dependency wiring, health checks |
-| **Agent Core** | `src/hermes/agents.py` | `HermesAgent` — run loop, tool selection, orchestration |
-| **Tool Registry** | `src/hermes/tools.py` | `ToolRegistry` — decorator-based registration, schema storage, validated execution |
-| **Memory Store** | `src/hermes/memory.py` | `AgentMemory` — in-memory message history with role tagging |
-| **Approval Gate** | `src/hermes/approvals.py` | `ApprovalGate` — human-in-the-loop checkpoint for tool calls |
-| **Configuration** | `src/hermes/config.py` | `AppConfig` — pydantic-settings config extending `BaseAppConfig` |
-| **Error Handling** | `src/hermes/errors.py` | `application_error_handler` — global FastAPI exception handler |
-| **Background Worker** | `src/hermes/worker.py` | Celery app with Redis broker for async task execution |
+| **API Gateway** | `src/aria_agent/main.py` | FastAPI app, endpoint routing, dependency wiring, health checks |
+| **Agent Core** | `src/aria_agent/agents.py` | `AriaAgent` — run loop, tool selection, orchestration |
+| **Tool Registry** | `src/aria_agent/tools.py` | `ToolRegistry` — decorator-based registration, schema storage, validated execution |
+| **Memory Store** | `src/aria_agent/memory.py` | `AgentMemory` — in-memory message history with role tagging |
+| **Approval Gate** | `src/aria_agent/approvals.py` | `ApprovalGate` — human-in-the-loop checkpoint for tool calls |
+| **Configuration** | `src/aria_agent/config.py` | `AppConfig` — pydantic-settings config extending `BaseAppConfig` |
+| **Error Handling** | `src/aria_agent/errors.py` | `application_error_handler` — global FastAPI exception handler |
+| **Background Worker** | `src/aria_agent/worker.py` | Celery app with Redis broker for async task execution |
 
 ### Shared-Core Dependencies
 
-Hermes depends on [`shared-core`](../../shared-core/) for cross-cutting concerns:
+Aria depends on [`shared-core`](../../shared-core/) for cross-cutting concerns:
 
-| shared-core Module | Usage in Hermes |
+| shared-core Module | Usage in Aria |
 |---------------------|-----------------|
 | `shared_core.config.BaseAppConfig` | Base class for `AppConfig` — provides `DATABASE_URL`, `REDIS_URL`, `LOG_LEVEL` |
 | `shared_core.database.DatabaseManager` | PostgreSQL session management for health checks and future persistence |
@@ -44,7 +44,7 @@ Hermes depends on [`shared-core`](../../shared-core/) for cross-cutting concerns
 sequenceDiagram
     participant Client
     participant API as FastAPI (main.py)
-    participant Agent as HermesAgent
+    participant Agent as AriaAgent
     participant Memory as AgentMemory
     participant Gate as ApprovalGate
     participant Registry as ToolRegistry
@@ -169,7 +169,7 @@ Currently contains only `sample_background_task(x, y)` as a stub. Planned tasks:
 
 ```mermaid
 graph TD
-    ToolError["Tool raises exception"] --> Agent["HermesAgent.run()"]
+    ToolError["Tool raises exception"] --> Agent["AriaAgent.run()"]
     SchemaError["Pydantic ValidationError"] --> Registry["ToolRegistry.call_tool()"]
     Registry --> Agent
     Agent --> API["FastAPI endpoint"]

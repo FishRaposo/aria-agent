@@ -5,9 +5,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 
 from pydantic import BaseModel, Field
 
-from hermes.agents import HermesAgent
-from hermes.approvals import ApprovalGate
-from hermes.tools import ToolRegistry
+from aria_agent.agents import AriaAgent
+from aria_agent.approvals import ApprovalGate
+from aria_agent.tools import ToolRegistry
 
 
 class CalculatorSchema(BaseModel):
@@ -24,7 +24,7 @@ def main():
             return f"Error: {e}"
 
     gate = ApprovalGate(enabled=True)
-    agent = HermesAgent(registry, gate)
+    agent = AriaAgent(registry, gate)
 
     print("--- Running Aria Agent Flow Demo ---")
     response = agent.run("Please calculate 120 + 350")

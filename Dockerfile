@@ -5,9 +5,9 @@ WORKDIR /app
 COPY shared-core/ /shared-core/
 RUN pip install -e /shared-core
 
-COPY hermes-agent-framework/requirements.txt .
+COPY aria-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY hermes-agent-framework/src/ ./src/
+COPY aria-agent/src/ ./src/
 
-CMD ["uvicorn", "src.hermes.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.aria_agent.main:app", "--host", "0.0.0.0", "--port", "8000"]

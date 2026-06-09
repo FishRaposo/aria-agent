@@ -1,5 +1,5 @@
 import pytest
-from hermes.tools import ToolRegistry
+from aria_agent.tools import ToolRegistry
 from pydantic import BaseModel
 
 

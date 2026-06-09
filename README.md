@@ -24,9 +24,11 @@ Most agent frameworks (LangChain, CrewAI, AutoGen) optimize for flexibility and 
 
 Aria Agent is a minimal, opinionated agent framework that prioritizes safety boundaries and observability over feature count. It's designed to show how a real agent system enforces constraints — the kind of engineering that production AI systems need but demo frameworks skip.
 
+> **Naming note** — This framework is **not related to [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)**. The original package was named `hermes`; it has been renamed to `aria_agent` (and the class to `AriaAgent`) to avoid confusion with the upstream fork in this same GitHub account. The two projects share a name in their heritage but are otherwise independent.
+
 ## What It Demonstrates
 
-- **Agent loop architecture** — reason-and-act loop with `HermesAgent.run()` orchestrating tool selection, approval checks, and memory updates in a single pass
+- **Agent loop architecture** — reason-and-act loop with `AriaAgent.run()` orchestrating tool selection, approval checks, and memory updates in a single pass
 - **Tool registry with Pydantic validation** — `ToolRegistry` uses decorator-based registration with `type[BaseModel]` schemas; `call_tool()` validates arguments via `schema(**args).model_dump()` before execution
 - **Human approval gates** — `ApprovalGate.request_approval()` intercepts tool calls with configurable enable/disable, logging parameters for audit before granting execution
 - **Conversation memory** — `AgentMemory` tracks role-tagged messages (`user`, `system`) providing sliding-window context for multi-turn interactions
@@ -39,7 +41,7 @@ Aria Agent is a minimal, opinionated agent framework that prioritizes safety bou
 ```mermaid
 graph TD
     Client["Client (API / CLI)"] --> API["FastAPI Gateway<br/>main.py"]
-    API --> Agent["HermesAgent<br/>agents.py"]
+    API --> Agent["AriaAgent<br/>agents.py"]
     Agent --> Registry["ToolRegistry<br/>tools.py"]
     Agent --> Memory["AgentMemory<br/>memory.py"]
     Agent --> Gate["ApprovalGate<br/>approvals.py"]
@@ -56,7 +58,7 @@ graph TD
 ### Request Flow
 
 1. Client sends a message to `POST /agent/chat`
-2. `HermesAgent.run()` receives the user query and writes it to `AgentMemory`
+2. `AriaAgent.run()` receives the user query and writes it to `AgentMemory`
 3. Agent determines which tool to invoke (currently keyword-based; LLM-based routing planned)
 4. `ApprovalGate.request_approval()` checks whether the action requires human sign-off
 5. If approved, `ToolRegistry.call_tool()` validates parameters against the tool's Pydantic schema
@@ -80,7 +82,7 @@ graph TD
 
 ```bash
 # Enter the project directory
-cd hermes-agent-framework
+cd aria-agent
 
 # Copy the environment template
 cp .env.example .env
@@ -114,7 +116,7 @@ Runs `examples/run_demo.py`, which:
 
 1. Creates a `ToolRegistry` and registers a `calculator` tool with a `CalculatorSchema` (Pydantic model with an `expression: str` field)
 2. Instantiates an `ApprovalGate` with approval enabled
-3. Creates a `HermesAgent` wired to the registry and gate
+3. Creates a `AriaAgent` wired to the registry and gate
 4. Sends the query `"Please calculate 120 + 350"` through `agent.run()`
 5. The approval gate logs a `SECURITY CHECK REQUIRED` warning, then auto-approves
 6. The calculator tool validates and evaluates the expression
@@ -195,7 +197,7 @@ Key environment variables from `.env.example`:
 
 ## Known Limitations
 
-- **Keyword-based routing** — `HermesAgent.run()` currently uses `if "calculate" in user_query.lower()` to select tools, not LLM-based reasoning. This is intentional for the MVP skeleton to demonstrate the framework mechanics without requiring API keys.
+- **Keyword-based routing** — `AriaAgent.run()` currently uses `if "calculate" in user_query.lower()` to select tools, not LLM-based reasoning. This is intentional for the MVP skeleton to demonstrate the framework mechanics without requiring API keys.
 - **Auto-approve only** — `ApprovalGate` logs a security warning but always returns `True`. Real approval queue (async with timeout) is planned for the display-ready milestone.
 - **In-memory state only** — `AgentMemory` uses a Python list; no persistence across restarts. PostgreSQL-backed memory is on the roadmap.
 - **Single tool registered** — only `calculator` exists in the demo. Five example tools (web_search_mock, calculator, file_reader, task_creator, email_draft_mock) are planned.
