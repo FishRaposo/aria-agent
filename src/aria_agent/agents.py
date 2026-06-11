@@ -1,3 +1,41 @@
+"""KeywordRouterAgent — the v0.1 keyword-routing tool agent (preserved).
+
+This is the ORIGINAL Aria agent logic from v0.1: it does keyword matching on
+the query, picks a tool, and runs the tool. It carries the v0.1 reason-and-act
+loop, in-memory conversation memory, approval gate, cost tracker, and trace
+log.
+
+In v0.3, this class is **not** the main entry point. It's a specialist that
+the new `AriaAgent` (in `agent.py`) delegates to when the query matches a
+tool keyword (e.g. "calculate 2 + 2" → calculator tool, "read foo.txt" →
+file_reader tool). The new AriaAgent wraps the result in a `CooperationResult`
+so the API surface stays uniform.
+
+What we kept verbatim from v0.1:
+- The reason-and-act loop (`for _step in range(self.max_steps)`)
+- `AgentMemory` (conversation history)
+- `ApprovalGate` (human-in-the-loop hook)
+- `ToolRegistry` + the 5 builtin tools (calculator, web_search, file_reader,
+  task_creator, email_draft)
+- `CostTracker` and `TraceLog` integration
+- The keyword-matching logic in `_plan_action` (calculator/search/file/task/email)
+- The optional LLM fallback in `_plan_action` and `_generate_response`
+
+What we renamed:
+- The class `AriaAgent` → `KeywordRouterAgent` to free up the name for the
+  new orchestrator in `agent.py`. The new AriaAgent is the canonical entry
+  point; KeywordRouterAgent is one of the strategies it can use.
+
+What we deliberately did NOT change:
+- The keyword vocabulary. Adding/changing keywords is a behavior change.
+- The `max_steps` default. Loops forever in name only (the original bug),
+  but we don't fix that here — that's a KeywordRouterAgent-level concern,
+  not the orchestrator's job. Fix it by either (a) giving it a real LLM in
+  `_plan_action` that can decide when to stop, or (b) replacing the loop
+  with the new router+cooperation flow.
+- The `llm_client` shim. It's a placeholder for a real LLM client; real
+  calls happen via the new provider layer.
+"""
 import re
 
 from loguru import logger
@@ -7,8 +45,13 @@ from .memory import AgentMemory
 from .tools import ToolRegistry
 
 
-class AriaAgent:
-    """Runs the central reason-and-act loop with tool execution constraints."""
+class KeywordRouterAgent:
+    """Runs the original reason-and-act loop with keyword-based tool dispatch.
+
+    This is the v0.1 Aria agent, preserved. The new `AriaAgent` (v0.3) is a
+    cross-provider model router with cooperation patterns; it delegates
+    tool-friendly queries here so all the v0.1 behavior still works.
+    """
 
     def __init__(
         self,
@@ -24,7 +67,7 @@ class AriaAgent:
         self.llm_client = llm_client
 
     def run(self, user_query: str, trace=None, cost_tracker=None) -> str:
-        logger.info(f"Agent received prompt: {user_query}")
+        logger.info(f"KeywordRouterAgent received prompt: {user_query}")
         self.memory.add_message("user", user_query)
         context = self.memory.get_context()
 
@@ -125,3 +168,13 @@ class AriaAgent:
             except Exception:
                 pass
         return "I processed your request but no tool was matched."
+
+
+# Backwards-compat alias. Old code that imports `AriaAgent` from
+# `aria_agent.agents` will still get a working class — it's the same
+# keyword-router logic, just under its old name. This keeps v0.1 callers
+# working without changes.
+AriaAgent = KeywordRouterAgent
+
+
+__all__ = ["KeywordRouterAgent", "AriaAgent"]

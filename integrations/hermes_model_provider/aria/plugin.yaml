@@ -1,0 +1,5 @@
+name: aria-provider
+kind: model-provider
+version: 0.1.0
+description: Aria local model selector/router provider
+author: FishRaposo

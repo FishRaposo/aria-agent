@@ -1,196 +1,180 @@
-# Architecture Overview
+# Aria Agent — Architecture (v0.3)
 
-This document describes the architectural layout, component interactions, and data flow of the Aria Agent (ARIA — Agentic Reasoning & Integration Architecture) — a controlled AI agent system with validated tool execution, human approval gates, and conversation memory.
+> Cross-provider model router with cooperation patterns **AND a v0.1 tool agent preserved**. v0.3 unifies both into a single orchestrator. Tool-friendly queries go to fast local tools (calculator, web_search, file_reader, task_creator, email_draft); everything else goes to the cross-provider router.
 
-## System Overview
+## System overview
 
-Aria Agent is a FastAPI-based agent framework where a central `AriaAgent` orchestrates a reason-and-act loop. When a user sends a message to `POST /agent/chat`, the agent determines which tool to invoke, passes the call through an `ApprovalGate` for human review, validates parameters against a Pydantic schema via the `ToolRegistry`, executes the tool, stores the result in `AgentMemory`, and returns a formatted response.
+A FastAPI service. The user sends a task via `POST /agent/run`. The gateway delegates to `AriaAgent`, which:
 
-The system is designed around three safety principles:
-1. **No tool executes without schema validation** — `ToolRegistry.call_tool()` instantiates the tool's Pydantic model with the provided arguments before calling the function
-2. **No critical action executes without approval** — `ApprovalGate.request_approval()` intercepts every tool call
-3. **Every interaction is recorded** — `AgentMemory.add_message()` logs both user inputs and tool outputs
+1. **Classifies intent** (IntentClassifier) — is this a tool-friendly query or a model-required query?
+2. **Tool path:** If tool-friendly, delegate to `KeywordRouterAgent` (v0.1, preserved). The legacy agent does keyword matching, dispatches to the registered tool, returns the tool's output wrapped in a `CooperationResult`.
+3. **Model path:** Otherwise, classify the task (`TaskClassifier` → `TaskType`), route to a (provider, model) triple (`ModelSelector` → `RoutingDecision`), and execute a cooperation pattern (`Cascade` | `PlanExecuteValidate` | `Ensemble`).
+4. **Returns** a `CooperationResult` with the final output + full step transcript (uniform across both paths).
 
-## Component Map
+The agent and registry are constructed once at app startup and shared across requests. **No module-level mutable state per request** (the v0.1 codebase had this bug — fixed in v0.2, preserved in v0.3).
 
-| Module | File | Responsibility |
-|--------|------|----------------|
-| **API Gateway** | `src/aria_agent/main.py` | FastAPI app, endpoint routing, dependency wiring, health checks |
-| **Agent Core** | `src/aria_agent/agents.py` | `AriaAgent` — run loop, tool selection, orchestration |
-| **Tool Registry** | `src/aria_agent/tools.py` | `ToolRegistry` — decorator-based registration, schema storage, validated execution |
-| **Memory Store** | `src/aria_agent/memory.py` | `AgentMemory` — in-memory message history with role tagging |
-| **Approval Gate** | `src/aria_agent/approvals.py` | `ApprovalGate` — human-in-the-loop checkpoint for tool calls |
-| **Configuration** | `src/aria_agent/config.py` | `AppConfig` — pydantic-settings config extending `BaseAppConfig` |
-| **Error Handling** | `src/aria_agent/errors.py` | `application_error_handler` — global FastAPI exception handler |
-| **Background Worker** | `src/aria_agent/worker.py` | Celery app with Redis broker for async task execution |
+## Component map
 
-### Shared-Core Dependencies
+| Layer | Module | Responsibility |
+|---|---|---|
+| **API Gateway** | `src/aria_agent/main.py` | FastAPI app, endpoint routing, dependency wiring |
+| **Agent Core (v0.3)** | `src/aria_agent/agent.py` | `AriaAgent.run()` — intent classification + path dispatch |
+| **Tool path (v0.1)** | `src/aria_agent/agents.py` | `KeywordRouterAgent` — keyword-routing tool agent (preserved) |
+| **Tool registry (v0.1)** | `src/aria_agent/tools.py` + `builtin_tools/` | `ToolRegistry` + 5 builtin tools (calculator, web_search, file_reader, task_creator, email_draft) |
+| **v0.1 components** | `approvals.py`, `memory.py`, `costs.py`, `tracing.py`, `worker.py` | Approval gate, conversation memory, cost tracking, trace log, Celery worker (all preserved) |
+| **Cooperation Patterns (v0.2)** | `src/aria_agent/cooperation/` | 3 patterns that orchestrate multiple model calls |
+| **Router (v0.2)** | `src/aria_agent/router/` | Classify task + pick best (provider, model) |
+| **Providers (v0.2)** | `src/aria_agent/providers/` | 3 LLM providers (OCG, MiniMax, Codex) + base + registry |
+| **Configuration** | `src/aria_agent/config.py` | Pydantic settings, env vars |
 
-Aria depends on [`shared-core`](../../shared-core/) for cross-cutting concerns:
+## Data flow: a single request
 
-| shared-core Module | Usage in Aria |
-|---------------------|-----------------|
-| `shared_core.config.BaseAppConfig` | Base class for `AppConfig` — provides `DATABASE_URL`, `REDIS_URL`, `LOG_LEVEL` |
-| `shared_core.database.DatabaseManager` | PostgreSQL session management for health checks and future persistence |
-| `shared_core.redis.RedisManager` | Redis connection for health checks and Celery broker |
-| `shared_core.logging.setup_logging` | Loguru configuration with service name tagging |
-| `shared_core.errors.BaseApplicationError` | Base exception class for structured JSON error responses |
+### Model path (the common case)
 
-## Data Flow
-
-### Agent Chat Flow
-
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as FastAPI (main.py)
-    participant Agent as AriaAgent
-    participant Memory as AgentMemory
-    participant Gate as ApprovalGate
-    participant Registry as ToolRegistry
-    participant Schema as Pydantic Schema
-    participant Tool as Tool Function
-
-    Client->>API: POST /agent/chat {message}
-    API->>Agent: agent.run(message)
-    Agent->>Memory: add_message("user", message)
-    Agent->>Agent: Determine tool (keyword match)
-    Agent->>Gate: request_approval(action, params)
-    Gate-->>Gate: Log SECURITY CHECK
-    Gate-->>Agent: True (approved)
-    Agent->>Registry: call_tool(name, args)
-    Registry->>Schema: schema(**args)
-    Schema-->>Registry: validated_args.model_dump()
-    Registry->>Tool: tool_fn(**validated_args)
-    Tool-->>Registry: result
-    Registry-->>Agent: result
-    Agent->>Memory: add_message("system", result)
-    Agent-->>API: formatted response
-    API-->>Client: {"reply": "..."}
+```
+User: POST /agent/run {"task": "Translate to Portuguese", "pattern": "cascade"}
+   ↓
+FastAPI gateway (main.py)
+   ↓ validates request
+AriaAgent.run(task, pattern="cascade")
+   ↓
+classify_intent(task) → Intent.MODEL_CALL (no tool keyword matched)
+   ↓
+CascadePattern.execute(task, router, registry)
+   ↓
+router.select_for_task_description(task)
+   ↓
+   classifier.classify(task)        → TaskType.TRANSLATION
+   router.find_by_task(TRANSLATION) → [kimi-k2.6, glm-5.1, ...]
+   selector.select(...)             → RoutingDecision(primary=kimi-k2.6, fallback=mimo-v2.5)
+   ↓
+CascadePattern:
+   1. cheap = mimo-v2.5 (cheap workhorse)
+   2. Call mimo → assess_quality → if OK, return; else escalate
+   3. best = kimi-k2.6 (escalation target)
+   4. Call kimi-k2.6 → return its output
+   ↓
+CooperationResult {
+   final_output: "Olá, mundo",
+   pattern: "cascade",
+   intent: "model_call",
+   num_steps: 2,
+   num_models_used: 2,
+   total_cost_usd: 0.0054,
+   steps: [mimo_step, kimi_step],
+   metadata: {cascade_outcome: "escalated", ...}
+}
+   ↓
+FastAPI gateway serializes → JSON response
 ```
 
-### Tool Registration Flow
+### Tool path (the fast case)
 
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant Registry as ToolRegistry
-    participant Store as tools dict + schemas dict
-
-    Dev->>Registry: @registry.register("calculator", CalculatorSchema)
-    Registry->>Store: tools["calculator"] = func
-    Registry->>Store: schemas["calculator"] = CalculatorSchema
-    Note over Store: Tool is now available for agent use
+```
+User: POST /agent/run {"task": "calculate 7 * 6"}
+   ↓
+FastAPI gateway (main.py)
+   ↓ validates request
+AriaAgent.run(task)
+   ↓
+classify_intent("calculate 7 * 6")
+   ↓
+   matched keyword "calculate" + has digits → Intent.TOOL_CALL
+   matched_tool = "calculator"
+   ↓
+AriaAgent._run_tool_path(task, classification)
+   ↓
+KeywordRouterAgent.run("calculate 7 * 6")
+   ↓
+   _plan_action → ("calculator", {"expression": "7 * 6"})
+   ↓
+   ApprovalGate.request_approval("calculator", {...}) → True
+   ↓
+   ToolRegistry.call_tool("calculator", {"expression": "7 * 6"})
+   ↓
+   eval("7 * 6", {"__builtins__": {}}, {}) → 42
+   ↓
+   "Result: 42"
+   ↓
+   TraceLog.add_tool_call(...)
+   CostTracker.record_call(...)
+   AgentMemory.add_message(...)
+   ↓
+CooperationResult {
+   final_output: "Result: 42",
+   pattern: "keyword_router",
+   intent: "tool_call",
+   num_steps: 1,
+   num_models_used: 0,
+   total_cost_usd: 0.0,
+   total_latency_ms: <1ms,
+   steps: [StepResult(step_name="keyword_router_tool_call", provider_name="keyword_router", ...)],
+   metadata: {matched_tool: "calculator", matched_keyword: "calculate", v0_1_trace: {...}, v0_1_cost: {...}}
+}
+   ↓
+FastAPI gateway serializes → JSON response (latency: <1ms, no LLM cost)
 ```
 
-### Health Check Flow
+## Key design decisions
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API as FastAPI (main.py)
-    participant DB as DatabaseManager
-    participant Redis as RedisManager
+### 1. Two paths, one orchestrator (v0.3)
 
-    Client->>API: GET /health
-    API->>DB: session.execute("SELECT 1")
-    DB-->>API: success/failure
-    API->>Redis: redis_manager.ping()
-    Redis-->>API: success/failure
-    API-->>Client: {"status": "healthy|degraded", "dependencies": {...}}
-```
+v0.3 unified the v0.1 tool agent and the v0.2 router into a single `AriaAgent`. The `AriaAgent.run()` flow:
 
-## Storage Model
+1. `classify_intent(task)` → `Intent.TOOL_CALL` or `Intent.MODEL_CALL`
+2. If `TOOL_CALL` → delegate to `KeywordRouterAgent` (the v0.1 reason-and-act loop). The result is wrapped in a `CooperationResult` so the API surface stays uniform.
+3. If `MODEL_CALL` → use the `ModelSelector` + `CooperationPattern` (the v0.2 path).
 
-### Current State (In-Memory)
+The intent classifier is rule-based v1: match tool keywords (calculate/search/read/task/email), verify the tool is registered, check the calculator special case (no digits → still model path). LLM-based classifier is on the roadmap.
 
-`AgentMemory` stores messages as a Python list of dicts:
+The keyword table is in `_TOOL_KEYWORDS` (in `agent.py`) and mirrored in `KeywordRouterAgent._plan_action` (in `agents.py`). They must stay in sync — when you add a tool, update both.
 
-```python
-# memory.messages structure
-[
-    {"role": "user", "content": "Please calculate 120 + 350"},
-    {"role": "system", "content": "Tool output: 470"},
-]
-```
+### 2. Provider is lazy
 
-No persistence across process restarts. Memory is per-agent-instance.
+`ProviderRegistry` constructs a provider only when its key is set. Lets the agent run with partial key configuration (e.g., OCG-only if the user hasn't paid for MiniMax/Codex yet).
 
-### Planned Schema (PostgreSQL)
+### 2. OCG's split routing is encoded in the provider
 
-Future persistence will use the following tables:
+OCG serves 11+ models across 2 protocols (chat-completions for Kimi/MiniMax/mimo/Qwen 3.6, Anthropic Messages for Qwen 3.7). The router doesn't know about this — it just says "use kimi-k2.6", and the provider's `OPENCODE_GO_MODELS` table figures out the protocol.
 
-| Table | Columns | Purpose |
-|-------|---------|---------|
-| `agent_sessions` | `id`, `agent_id`, `created_at`, `status` | Track agent conversation sessions |
-| `agent_messages` | `id`, `session_id`, `role`, `content`, `created_at` | Persistent message history |
-| `tool_calls` | `id`, `session_id`, `tool_name`, `args`, `result`, `duration_ms`, `approved_by` | Tool execution audit log |
-| `agent_traces` | `id`, `session_id`, `event_type`, `payload`, `timestamp` | Per-run trace events |
-| `cost_records` | `id`, `session_id`, `model`, `input_tokens`, `output_tokens`, `cost_usd` | LLM cost tracking |
+If OCG adds a new model with a new protocol, only `opencode_go.py` needs to change.
 
-## Background Jobs
+### 3. Specialist > generalist in the routing table
 
-### Celery Worker (`worker.py`)
+For specialty tasks (REASONING, LONG_CONTEXT, VISION), specialists win (tier rank 0-2). For general tasks (CODING_DEFAULT, GENERAL, WRITING), M3 (generalist, DEFAULT tier) wins. The tier ordering is:
+- BEST_QUALITY (rank 0) — Kimi K2.6, GLM-5.1
+- LONG_CONTEXT (rank 1) — DeepSeek V4 Pro
+- MULTIMODAL (rank 2) — Kimi K2.5
+- LEGACY (rank 3)
+- DEFAULT (rank 4) — MiniMax-M3
+- CHEAP_WORKHORSE (rank 5) — mimo-v2.5
+- PRO_PLUS (rank 6) — Claude/GPT (not in active pool, available on Pro+ plan)
 
-The Celery app is configured with:
-- **Broker**: Redis (from `REDIS_URL`)
-- **Backend**: Redis (same URL)
-- **Serialization**: JSON only (`task_serializer`, `accept_content`, `result_serializer`)
-- **Timezone**: UTC
+### 4. Cooperation patterns return CooperationResult, not strings
 
-Currently contains only `sample_background_task(x, y)` as a stub. Planned tasks:
+The agent and gateway are designed around structured results. Every model call is recorded as a `StepResult` (model, input, output, latency, cost, success). The trace is auditable end-to-end.
 
-| Task | Purpose |
-|------|---------|
-| `execute_tool_async` | Run long-running tools (web search, file processing) without blocking the API |
-| `process_approval_queue` | Poll approval requests and route to human reviewers |
-| `persist_trace` | Write trace records to PostgreSQL asynchronously |
-| `calculate_run_cost` | Aggregate LLM token usage and compute cost per agent run |
+### 5. No module-level mutable state per request
 
-## External Dependencies
+`main.py` constructs `agent`, `registry`, and `router` once at startup. They're shared across requests because they're stateless (registry has lazy construction; router is a pure data structure; agent holds pattern instances which are stateless too). This fixes the v0.1 bug where every request shared the same `AgentMemory` and `CostTracker`.
 
-| Service | Required? | Purpose |
-|---------|-----------|---------|
-| PostgreSQL 16 | Yes | Health checks, future persistence (sessions, traces, costs) |
-| Redis 7 | Yes | Health checks, Celery broker, future approval queue |
-| OpenAI API | Planned | LLM-backed tool routing (replaces keyword matching) |
-| Anthropic API | Planned | Alternative LLM provider |
+### 6. Per-pattern quality check
 
-## Failure Handling
+Cascade uses `assess_quality` (length + refusal detection) to decide whether to escalate. v1 is rule-based; v2 will use LLM-as-judge. The hook is in place.
 
-### Current Implementation
+## Failure modes
 
-- **Tool not found**: `ToolRegistry.call_tool()` raises `KeyError` if the tool name isn't registered — propagates as a 500 to the client
-- **Schema validation failure**: Pydantic raises `ValidationError` if tool arguments don't match the schema — propagates as a 500
-- **Database/Redis offline**: Health endpoint catches exceptions and reports `"degraded"` status with per-dependency breakdown
-- **Application errors**: `application_error_handler` catches `BaseApplicationError` subclasses and returns structured JSON with status code, error code, and message
+| Failure | Handling |
+|---|---|
+| Provider API key missing | Provider not constructed, `get()` raises `KeyError`. Cooperation patterns catch and return a degraded result with metadata. |
+| Provider returns empty output | `assess_quality` marks as unacceptable → cascade escalates. Ensemble picks the longest non-empty output. |
+| Provider rate-limited | `_call_model` returns a `StepResult` with `success=False, error=...`. Pattern decides whether to retry or surface. |
+| Escalation target's provider not registered | `cascade.py` catches `KeyError` and returns the cheap output with `cascade_outcome: "escalation_failed_returned_cheap"` + the intended escalation in metadata. |
+| Validator rejects the executor's output | `plan_execute.py` retries up to `max_retries` times with the validator's feedback. After max retries, returns the best step by quality score. |
+| All models fail | CooperationResult with `final_output: "(no output produced)"` and a step transcript of all failures. Agent returns 500. |
 
-### Error Propagation Path
+## See also
 
-```mermaid
-graph TD
-    ToolError["Tool raises exception"] --> Agent["AriaAgent.run()"]
-    SchemaError["Pydantic ValidationError"] --> Registry["ToolRegistry.call_tool()"]
-    Registry --> Agent
-    Agent --> API["FastAPI endpoint"]
-    API --> Handler["application_error_handler"]
-    Handler --> Client["JSON error response"]
-    DBError["Database connection error"] --> Health["GET /health"]
-    Health --> Client2["degraded status"]
-```
-
-### Planned Improvements
-
-- Retry policies with configurable max attempts and backoff
-- Circuit breaker pattern for external tool calls
-- Timeout enforcement on tool execution
-- Dead-letter queue for permanently failed tool calls
-
-## Security Boundaries
-
-See [security.md](security.md) for the full security model. Key boundaries:
-
-1. **Tool execution boundary** — all tool calls pass through `ToolRegistry.call_tool()` which validates arguments via Pydantic before execution
-2. **Approval boundary** — `ApprovalGate.request_approval()` sits between tool selection and tool execution; can block dangerous actions
-3. **API boundary** — FastAPI with `BaseApplicationError` handler ensures no raw tracebacks leak to clients
-4. **Configuration boundary** — secrets loaded from environment variables via pydantic-settings, never hardcoded
+- `README.md` — user-facing docs, quick start
+- `AGENTS.md` — agent-facing docs (orientation, source module table, conventions)
+- `examples/run_demo.py` — runnable live demo

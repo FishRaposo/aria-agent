@@ -21,6 +21,11 @@ curl -X POST http://localhost:8000/subagent/run \
   -d '{"role": "planner", "task": "Plan a /health endpoint"}'
 # → kimi-k2.6 (best for deep reasoning)
 
+# Use Aria as a model selector for other agents
+aria-cmd --route-only "Review this diff for correctness"      # Command Code bridge
+aria-opencode --dry-run "Debug failing tests in this repo"    # OpenCode bridge
+hermes chat --provider aria -m aria/route -q "Review this"    # Hermes provider plugin
+
 # Parallel orchestrator — independent perspectives
 curl -X POST http://localhost:8000/orchestrator/run \
   -H 'Content-Type: application/json' \
@@ -50,13 +55,13 @@ The router picks the best model per role. The table below shows each role's *pre
 |---|---|---|---|
 | planner | kimi-k2.6 (best_quality) | Task decomposition, design thinking | kimi-k2.6 |
 | architect | kimi-k2.6 | System design, broad thinking | kimi-k2.6 |
-| implementer | MiniMax-M3 (default) | Production code | minimax-m2.7 (M3 needs direct key) |
-| debugger | deepseek-v4-pro (long_context) | Root-cause analysis | kimi-k2.6 (deepseek is Pro+) |
+| implementer | MiniMax-M3 (default) | Production code | MiniMax-M3 → opencode-go/minimax-m3 → openai-codex/gpt-5.4-mini |
+| debugger | deepseek-v4-pro (long_context) | Root-cause analysis | deepseek-v4-pro if live, otherwise registry fallback |
 | documenter | kimi-k2.6 | Technical docs, clear prose | kimi-k2.6 |
-| reviewer | qwen-3.7-max (best_quality) | Code review, quality checks | kimi-k2.6 (qwen is Pro+) |
-| tester | MiniMax-M3 | Edge-case test design | minimax-m2.7 |
-| validator | qwen-3.7-max | Correctness verification | kimi-k2.6 (qwen is Pro+) |
-| researcher | deepseek-v4-pro (long_context) | Synthesis from sources | kimi-k2.6 (deepseek is Pro+) |
+| reviewer | qwen-3.7-max (best_quality) | Code review, quality checks | kimi-k2.6 unless qwen is live |
+| tester | MiniMax-M3 | Edge-case test design | MiniMax-M3 → opencode-go/minimax-m3 → openai-codex/gpt-5.4-mini |
+| validator | qwen-3.7-max | Correctness verification | kimi-k2.6 unless qwen is live |
+| researcher | deepseek-v4-pro (long_context) | Synthesis from sources | deepseek-v4-pro if live, otherwise registry fallback |
 
 The routing table is a *catalog* (what's preferred). The registry is the *reality* (what's callable on this plan). The two are separated by design — phantom models don't crash the system, they just fall through the decision chain.
 
@@ -70,9 +75,10 @@ The routing table is a *catalog* (what's preferred). The registry is the *realit
 
 **3 providers, 8+ routable models:**
 
-- **OpenCode Go** (default) — 11 models including Kimi K2.6, DeepSeek V4 Pro, MiMo V2.5, GLM-5.1
-- **MiniMax direct** — MiniMax-M3 (default session model), M2.7, M2.5
-- **OpenAI Codex** (OAuth) — gpt-5.5 (Pro+ gated)
+- **OpenCode Go** — open-weights route used for Kimi, MiniMax mirror, DeepSeek, MiMo, GLM/Qwen catalog entries (live availability can differ by plan)
+- **MiniMax direct** — MiniMax-M3 operating/default model when `MINIMAX_API_KEY` is set
+- **OpenAI Codex** (OAuth) — gpt-5.5 and gpt-5.4-mini escalation/fallback path
+- **Aria provider facade** — local OpenAI-compatible `/v1` route for Hermes (`provider=aria`, `model=aria/auto|aria/route|aria/role/*`)
 
 The router picks the best model per task AND per sub-agent role. Specialists beat generalists for specialty work. M3 is the default for general coding.
 
