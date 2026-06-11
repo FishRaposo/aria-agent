@@ -16,7 +16,7 @@ A **cross-provider model router with cooperation patterns, a v0.1 tool agent, an
 
 **Phase:** v0.4 (active). Builds on v0.1 (tools) + v0.2 (router/cooperation) + v0.3 (unified orchestrator) — see "What v0.4 adds" below.
 
-**Termux:** Designed to run on Termux out of the box. `bash scripts/install-termux.sh` does the whole setup (no `pip install -e`). The Makefile auto-detects Termux mode and uses PYTHONPATH only.
+**Termux:** Designed to run on Termux out of the box. `bash scripts/install-termux.sh` does the whole setup (no `pip install -e`). The Makefile auto-detects Termux mode and uses PYTHONPATH only. **Start the server with `scripts/aria-serve.sh`, not `make serve` — the wrapper sources `~/.hermes/.env` so the uvicorn child sees the API keys.** See `docs/termux-compat.md` for the full strategy and the 25-test regression guard in `tests/test_termux_compat.py`.
 
 ## What v0.4 adds (vs. v0.3)
 
@@ -61,6 +61,7 @@ Override any role's model per-call via `model_id` parameter, or override the who
 | Path | Purpose | When to update |
 |---|---|---|
 | `scripts/install-termux.sh` | Termux setup (idempotent) | New dep added; new install mode |
+| `scripts/aria-serve.sh` | Start the Aria server on Termux (sources .env, sets PYTHONPATH, logs to $PREFIX/tmp) | Server start path or log location changes |
 | `Makefile` | Auto-detects Termux (uses hermes-agent venv) vs standard | New target added; new env override |
 | `integrations/hermes_aria_tool.py` | Drop-in Hermes tool for Aria sub-agents | New sub-agent role added; new HTTP endpoint |
 | `src/aria_agent/__init__.py` | Public API exports (v0.1 + v0.2 + v0.3 + v0.4) | New top-level symbol added |

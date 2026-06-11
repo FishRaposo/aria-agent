@@ -133,20 +133,24 @@ shared-core needed.
 cd ~/work/aria-agent
 bash scripts/install-termux.sh
 
-# Run the test suite (no API calls)
+# Run the test suite (no API calls, includes 25-test Termux-compat guard)
 make test
 
 # Run the live demo (needs OPENCODE_GO_API_KEY in your env)
 source ~/.hermes/.env   # your existing Hermes env
 make demo
 
-# Start the FastAPI server
-make serve
+# Start the FastAPI server (sources .env, sets PYTHONPATH, logs to $PREFIX/tmp)
+./scripts/aria-serve.sh
 ```
 
 The `make` command auto-detects Termux mode: if `~/.hermes/hermes-agent/venv`
 exists, it uses that Python + sets `PYTHONPATH` to find `shared-core`.
 Standard (Linux/macOS) install is also supported via `make install`.
+
+See [`docs/termux-compat.md`](docs/termux-compat.md) for the full strategy
+(what's blocked on Termux, the PYTHONPATH pattern, the wrapper script, the
+watchdog pattern, and the 25-test regression guard).
 
 ### Standard install (Linux / macOS / dev container)
 
