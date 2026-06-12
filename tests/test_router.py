@@ -28,8 +28,9 @@ class TestRoutingTable:
         default = table.default_model()
         assert default.model_id == "MiniMax-M3"
         assert default.provider_name == "minimax-direct"
-        # The default model has the explicit M3 chain: OCG mirror → Codex mini
-        assert ("opencode-go", "minimax-m3") in default.fallback_chain
+        # The default model has the explicit M3 chain: Zen mirror → Codex mini
+        # (2026-06-11: M3 closed source moved from opencode-go to zen)
+        assert ("zen", "minimax-m3") in default.fallback_chain
         assert ("openai-codex", "gpt-5.4-mini") in default.fallback_chain
 
     def test_find_by_task_returns_active_first(self):

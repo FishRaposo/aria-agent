@@ -179,6 +179,9 @@ class TestCascadePattern:
                 "too short",
                 "This is the better answer from the escalated model call.",
             ]),
+            "zen": FakeProvider("zen", [
+                "This is the better answer from the escalated model call.",
+            ]),
             "minimax-direct": FakeProvider("minimax-direct", [
                 "This is the better answer from the escalated model call.",
             ]),
@@ -370,6 +373,12 @@ class TestEnsemblePattern:
             ]),
             "opencode-go": FakeProvider("opencode-go", [
                 "Short.",
+            ]),
+            # After 2026-06-11 split, closed-source M3 fallback lives on Zen
+            # too. Some GENERAL picks may route through Zen first if Zen
+            # serves the candidate. Register it as a no-op safety net.
+            "zen": FakeProvider("zen", [
+                "This is a much longer, more detailed answer that should win on length.",
             ]),
         })
         selector = ModelSelector(get_default_routing_table())

@@ -150,7 +150,7 @@ ACTIVE_POOL: list[ModelInfo] = [
     # --- minimax-direct: M3 (default session model, with fallback chain) ----
     # The fallback chain is the M3 user's explicit "go plan" preference:
     #   1. Primary: minimax-direct / MiniMax-M3 (direct, official)
-    #   2. First fallback: opencode-go / minimax-m3 (OCG mirror — verified
+    #   2. First fallback: zen / minimax-m3 (Zen mirror of M3 — verified
     #      live 2026-06-10: HTTP 200, lowercase-hyphen naming, same weights)
     #   3. Second fallback: openai-codex / gpt-5.4-mini (Codex OAuth route —
     #      not yet live on this plan, see Codex provider)
@@ -181,7 +181,7 @@ ACTIVE_POOL: list[ModelInfo] = [
             SubAgentRole.IMPLEMENTER, SubAgentRole.TESTER, SubAgentRole.DOCUMENTER,
         ),
         fallback_chain=(
-            ("opencode-go", "minimax-m3"),    # 1st: OCG mirror of M3
+            ("zen", "minimax-m3"),    # 1st: OCG mirror of M3
             ("openai-codex", "gpt-5.4-mini"),  # 2nd: Codex OAuth route
         ),
     ),
@@ -227,14 +227,14 @@ ACTIVE_POOL: list[ModelInfo] = [
         notes="Vision-capable. Frontend coding. 99% off promo.",
         role_preferences=(),  # Superseded by k2.6
     ),
-    # --- opencode-go: minimax-m3 (M3 mirror, verified live 2026-06-10) ----
+    # --- zen: minimax-m3 (M3 mirror, verified live 2026-06-11) ---------
     # This is the OCG-served alias of MiniMax-M3. OCG uses lowercase-hyphen
     # naming (`minimax-m3`); MiniMax direct uses upper-mixed-case (`MiniMax-M3`).
     # They're different model IDs on the wire (not just aliases), but the
     # weights are the same. This entry exists so the registry can walk the
     # M3 chain: minimax-direct/MiniMax-M3 → opencode-go/minimax-m3.
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="minimax-m3",
         tier=ModelTier.DEFAULT,
         task_types=(
@@ -256,7 +256,7 @@ ACTIVE_POOL: list[ModelInfo] = [
     # but the API returns "Model X is not supported" when called.
     # Kept here so the router knows they exist and can recommend plan upgrades.
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="qwen-3.7-max",
         tier=ModelTier.PRO_PLUS,
         task_types=(
@@ -271,7 +271,7 @@ ACTIVE_POOL: list[ModelInfo] = [
         role_preferences=(),  # Pro+ — not active on Go plan
     ),
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="qwen-3.7-plus",
         tier=ModelTier.PRO_PLUS,
         task_types=(
@@ -284,10 +284,10 @@ ACTIVE_POOL: list[ModelInfo] = [
         notes="Long-horizon coding. PRO+ on this plan. Sibling of qwen-3.7-max.",
         role_preferences=(),  # Pro+ — not active on Go plan
     ),
-    # --- opencode-go: qwen 3.6 (long-context, workhorse-quality) ------
+    # --- zen: qwen 3.6 (long-context, workhorse-quality) ---------------
     # PRO+ on the user's Go plan — see comment above.
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="qwen-3.6-max",
         tier=ModelTier.PRO_PLUS,
         task_types=(
@@ -301,7 +301,7 @@ ACTIVE_POOL: list[ModelInfo] = [
         role_preferences=(),  # Pro+ — not active on Go plan
     ),
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="qwen-3.6-plus",
         tier=ModelTier.PRO_PLUS,
         task_types=(
@@ -313,9 +313,9 @@ ACTIVE_POOL: list[ModelInfo] = [
         notes="1M context. PRO+ on this plan. Sibling of qwen-3.6-max.",
         role_preferences=(),  # Pro+ — not active on Go plan
     ),
-    # --- opencode-go: MiniMax M2 (legacy direct models, mirrored) -----
+    # --- zen: MiniMax M2 (legacy direct models, mirrored) --------------
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="minimax-m2.7",
         tier=ModelTier.DEFAULT,
         task_types=(
@@ -329,7 +329,7 @@ ACTIVE_POOL: list[ModelInfo] = [
         role_preferences=(SubAgentRole.IMPLEMENTER, SubAgentRole.TESTER),
     ),
     ModelInfo(
-        provider_name="opencode-go",
+        provider_name="zen",
         model_id="minimax-m2.5",
         tier=ModelTier.MULTIMODAL,
         task_types=(TaskType.GENERAL, TaskType.VISION),

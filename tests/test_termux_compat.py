@@ -151,12 +151,20 @@ class TestResolveDecisionFallback:
         return selector.select(task_type)
 
     def test_unregistered_primary_falls_through(self):
-        """If only OCG is registered, picking any model must still return a callable pair."""
+        """If only OCG-style providers are registered, picking any model must
+        still return a callable pair. After the 2026-06-11 split, both
+        opencode-go (open source) and zen (closed source) are registered
+        when OPENCODE_GO_API_KEY is set — so the resolver picks whichever
+        one serves the routing table's choice. We just verify the result
+        is on a registered provider that serves the chosen model.
+        """
         from aria_agent.providers.registry import ProviderRegistry
         from aria_agent.router import TaskType
 
         with patch.dict(os.environ, {"OPENCODE_GO_API_KEY": "fake"}, clear=True):
             reg = ProviderRegistry()
+            assert "opencode-go" in reg._providers, "opencode-go should be registered"
+            assert "zen" in reg._providers, "zen should be registered"
             for tt in (
                 TaskType.CODING_DEFAULT,
                 TaskType.REASONING,
@@ -166,7 +174,9 @@ class TestResolveDecisionFallback:
                 from aria_agent.router import ModelSelector, get_default_routing_table
                 decision = ModelSelector(get_default_routing_table()).select(tt)
                 provider_name, model_id = reg.resolve_decision(decision)
-                assert provider_name == "opencode-go", f"{tt} -> {provider_name}, not OCG"
+                assert provider_name in ("opencode-go", "zen"), (
+                    f"{tt} -> {provider_name}, not in (opencode-go, zen)"
+                )
                 assert model_id in reg.get(provider_name).get_models(), (
                     f"{tt}: model {model_id!r} not served by {provider_name}"
                 )

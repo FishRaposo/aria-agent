@@ -34,15 +34,53 @@ class TestProviderModelLists:
             assert m in models, f"{m} should be in MiniMax direct catalog"
 
     def test_ocg_includes_chat_completions_models(self):
+        """OCG serves open source models only. Closed source (MiniMax, GLM-5,
+        Qwen flagship) moved to ZenProvider — see test_zen_includes_closed_source_models.
+        """
         from aria_agent.providers.opencode_go import (
             OCG_CHAT_COMPLETIONS_MODELS,
             OpenCodeGoProvider,
         )
 
         models = OpenCodeGoProvider().get_models()
-        for m in ("kimi-k2.6", "kimi-k2.5", "minimax-m2.7", "mimo-v2.5"):
+        for m in ("kimi-k2.6", "kimi-k2.5", "mimo-v2.5", "deepseek-v4-pro", "hy3-preview"):
             assert m in models, f"{m} should be in OCG chat-completions catalog"
             assert m in OCG_CHAT_COMPLETIONS_MODELS
+
+    def test_zen_includes_closed_source_models(self):
+        """Zen serves closed source models. Open source (Kimi, MiMo, DeepSeek,
+        Hunyuan) live on OCGProvider — see test_ocg_includes_chat_completions_models.
+        """
+        from aria_agent.providers.zen import (
+            ZEN_CHAT_COMPLETIONS_MODELS,
+            ZenProvider,
+        )
+
+        models = ZenProvider().get_models()
+        for m in ("minimax-m3", "minimax-m2.7", "glm-5.1", "qwen3.7-max", "gpt-5.4-mini"):
+            assert m in models, f"{m} should be in Zen chat-completions catalog"
+            assert m in ZEN_CHAT_COMPLETIONS_MODELS
+
+    def test_zen_does_not_include_open_source_models(self):
+        """Closed-source-only scope. Open source models live on OCG, not Zen."""
+        from aria_agent.providers.zen import ZenProvider
+
+        zen_models = ZenProvider().get_models()
+        for m in ("kimi-k2.6", "kimi-k2.5", "mimo-v2.5", "deepseek-v4-pro", "hy3-preview"):
+            assert m not in zen_models, (
+                f"{m} is open source; belongs on OCG not Zen"
+            )
+
+    def test_ocg_does_not_include_closed_source_models(self):
+        """Open-source-only scope. Closed source models live on Zen, not OCG."""
+        from aria_agent.providers.opencode_go import OpenCodeGoProvider
+
+        ocg_models = OpenCodeGoProvider().get_models()
+        for m in ("minimax-m3", "minimax-m2.7", "minimax-m2.5",
+                  "glm-5.1", "qwen3.7-max", "qwen3.6-plus", "gpt-5.4-mini"):
+            assert m not in ocg_models, (
+                f"{m} is closed source; belongs on Zen not OCG"
+            )
 
     def test_ocg_anthropic_path_is_empty_on_go_plan(self):
         """On the user's Go plan, the Anthropic-SDK path in OCG is empty.
@@ -183,9 +221,11 @@ class TestM3FallbackChain:
         assert provider_name == "minimax-direct"
         assert model_id == "MiniMax-M3"
 
-    def test_chain_falls_back_to_ocg_when_minimax_direct_unavailable(self):
-        """When only OCG is registered, the chain falls to step 2
-        (opencode-go/minimax-m3 — the OCG mirror, verified live 2026-06-10)."""
+    def test_chain_falls_back_to_zen_when_minimax_direct_unavailable(self):
+        """When only OCG-style providers are registered, the chain falls to step 2
+        (zen/minimax-m3 — the Zen mirror of M3, verified live 2026-06-11).
+        Same key, /zen/v1/ base URL, closed-source tier.
+        """
         from aria_agent.providers.registry import ProviderRegistry
 
         with patch.dict(
@@ -193,15 +233,14 @@ class TestM3FallbackChain:
             {"OPENCODE_GO_API_KEY": "fake-key"},
             clear=False,
         ):
-            # Remove minimax-direct key if present
             env_no_minimax = {k: v for k, v in os.environ.items() if k != "MINIMAX_API_KEY"}
             with patch.dict(os.environ, env_no_minimax, clear=True):
                 reg = ProviderRegistry()
         decision = self._make_decision()
         provider_name, model_id = reg.resolve_decision(decision)
-        assert provider_name == "opencode-go"
+        assert provider_name == "zen"
         assert model_id == "minimax-m3", (
-            "M3 chain step 2 should pick the OCG mirror of M3, not minimax-m2.7. "
+            "M3 chain step 2 should pick the Zen mirror of M3, not minimax-m2.7. "
             "The two are different models on the wire — M3 is minimax-m3, "
             "M2.7 is minimax-m2.7."
         )
@@ -235,24 +274,24 @@ class TestM3FallbackChain:
         # Step 3: openai-codex / gpt-5.4-mini — registered, wins
         provider_name, model_id = reg.resolve_decision(decision)
         assert (provider_name, model_id) == ("openai-codex", "gpt-5.4-mini")
-
     def test_minimax_m3_and_MiniMax_M3_are_distinct_model_ids(self):
-        """The chain works because minimax-m3 (OCG, lowercase-hyphen) and
+        """The chain works because minimax-m3 (Zen, lowercase-hyphen) and
         MiniMax-M3 (MiniMax direct, upper-mixed-case) are DIFFERENT model
         IDs on the wire. They're not aliases — the providers serve them
-        independently. The OCG provider was missing minimax-m3 from its
-        known models list (verified gap 2026-06-10); the registry needs
-        both IDs to walk the chain correctly."""
-        from aria_agent.providers.opencode_go import OpenCodeGoProvider
+        independently. The Zen provider serves minimax-m3 (verified 2026-06-11);
+        the MiniMax direct provider serves MiniMax-M3. The registry walks
+        the chain across both providers.
+        """
+        from aria_agent.providers.zen import ZenProvider
 
-        ocg_models = OpenCodeGoProvider().get_models()
-        assert "minimax-m3" in ocg_models  # OCG mirror
-        assert "MiniMax-M3" not in ocg_models  # MiniMax direct naming, not on OCG
+        zen_models = ZenProvider().get_models()
+        assert "minimax-m3" in zen_models  # Zen mirror
+        assert "MiniMax-M3" not in zen_models  # MiniMax direct naming, not on Zen
 
         from aria_agent.providers.minimax import MiniMaxProvider
         mm_models = MiniMaxProvider().get_models()
         assert "MiniMax-M3" in mm_models  # MiniMax direct naming
-        assert "minimax-m3" not in mm_models  # OCG naming, not on MiniMax direct
+        assert "minimax-m3" not in mm_models  # Zen naming, not on MiniMax direct
 
 
 class TestProviderErrors:

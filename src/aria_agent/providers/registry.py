@@ -14,6 +14,7 @@ from .base import BaseProvider
 from .minimax import MiniMaxProvider
 from .openai_codex import OpenAICodexProvider
 from .opencode_go import OpenCodeGoProvider
+from .zen import ZenProvider
 
 
 class ProviderRegistry:
@@ -39,8 +40,15 @@ class ProviderRegistry:
         import time).
         """
         # OpenCode Go — the user's primary open-weights route.
+        # (/zen/go/v1/, free Go tier, open source models only.)
         if os.environ.get("OPENCODE_GO_API_KEY"):
             self._providers["opencode-go"] = OpenCodeGoProvider()
+
+        # Zen — the same key, the closed-source tier (/zen/v1/, paid Pro).
+        # Most calls on a $1/mo Go plan return 401 "Insufficient balance";
+        # the routing table's fallback_chain walks to a callable alternative.
+        if os.environ.get("OPENCODE_GO_API_KEY"):
+            self._providers["zen"] = ZenProvider()
 
         # MiniMax direct — the user's default operating model.
         # Accept the canonical uppercase env var and the historical mixed-case

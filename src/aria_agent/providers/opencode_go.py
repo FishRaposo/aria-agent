@@ -1,20 +1,29 @@
-"""OpenCode Go (OCG) provider.
+"""OpenCode Go (OCG) provider — open source models only.
 
-Endpoint: https://opencode.ai/zen/go/v1 (mixed protocol — chat-completions for
-Kimi/MiniMax/mimo, Anthropic Messages for Qwen 3.7).
+Endpoint: https://opencode.ai/zen/go/v1
 Auth: Bearer token via OPENCODE_GO_API_KEY env var.
 
-This is the user's primary open-weights route. It serves the most models
-(Kimi K2.6, Kimi K2.5, MiniMax M2.7, MiniMax M2.5, Qwen 3.7, MiMo V2.5, etc.)
-through a single API key.
+**Scope: open source models only.** OCG (the `/zen/go/` tier) is the
+free / Go plan path and serves open-weight models. Closed source models
+(Claude, GPT, Gemini, Grok, MiniMax, GLM-5, Qwen flagship) live on the
+separate Zen provider at `/zen/v1/`, which is the paid / Pro tier.
+
+If you need a closed source model, route through `ZenProvider` instead
+of this one. Putting a closed source model here would have been wrong
+even when `/zen/go/` happened to return it on the catalog — it implies
+it's free / open weight, which it isn't.
+
+Verified-live on the user's $1/mo Go plan (probed 2026-06-10 and
+2026-06-11). Models are the IDs the API accepts on this plan.
 
 Two protocol paths are required because OCG doesn't normalize on one:
-- chat_completions(): used by Kimi, MiniMax, mimo, Qwen 3.6
-- messages(): used by Qwen 3.7 (Anthropic SDK protocol)
+- chat_completions(): used by Kimi, MiMo, DeepSeek, Hunyuan
+- messages(): used by Qwen 3.6 (Anthropic SDK protocol)
 
-Pitfall: OCG's /models endpoint can 403 with Cloudflare 1010 (browser-signature
-block). Use a browser-like User-Agent on direct curl probes. The OpenAI/Anthropic
-SDKs do not trigger this for chat calls; the issue is inventory/probe calls.
+Pitfall: OCG's /models endpoint can 403 with Cloudflare 1010 (browser-
+signature block). Use a browser-like User-Agent on direct curl probes.
+The OpenAI/Anthropic SDKs do not trigger this for chat calls; the issue
+is inventory/probe calls.
 """
 import os
 import time
@@ -25,35 +34,30 @@ from shared_core.llm import LLMResponse, estimate_llm_cost
 from .base import BaseProvider, ProviderError
 
 
-# Models served by OCG, grouped by protocol path.
-# - chat_completions: OpenAI-compatible chat completions
-# - anthropic_messages: Anthropic Messages API (Anthropic SDK base URL /zen/go)
+# Open source models served by OCG's /zen/go/ endpoint.
+# (Kimi K2 was open-sourced; Xiaomi MiMo is open weights; DeepSeek and
+# Tencent Hunyuan are open weights.)
 #
-# Verified-live on the user's $1/mo Go plan (probed 2026-06-10).
-# These are the model IDs the API accepts on this plan — anything not in
-# these lists returns "Model X is not supported" at call time, even though
-# the OCG provider's wider catalog lists more.
+# NOT HERE (these are closed source — go to ZenProvider):
+#   - minimax-m3, minimax-m2.7, minimax-m2.5  (MiniMax — closed)
+#   - glm-5.1, glm-5                          (Zhipu GLM-5 — closed)
+#   - qwen-3.7-max, qwen-3.7-plus,
+#     qwen-3.6-plus, qwen-3.5-plus            (Qwen flagship — closed)
 OCG_CHAT_COMPLETIONS_MODELS: list[str] = [
     "kimi-k2.6",
     "kimi-k2.5",
-    "minimax-m3",      # M3 mirror (lowercase-hyphen, verified live 2026-06-10)
-    "minimax-m2.7",
-    "minimax-m2.5",
     "mimo-v2.5",
     "mimo-v2.5-pro",
-    # qwen-3.6-plus, qwen-3.6-max, qwen-3.7-plus, qwen-3.7-max,
-    # and nemotron-3-ultra-550b-a55b are in OCG's wider catalog but are
-    # NOT callable on this plan (probed: "Model X is not supported").
-    # Listed in the routing table as Pro+/future so the registry can fall
-    # back gracefully if the user upgrades.
+    "deepseek-v4-pro",
+    "deepseek-v4-flash",
+    "hy3-preview",
 ]
 
-# Models that need the Anthropic SDK path (different base URL, different auth).
-# Per the model-router quirks file: Qwen 3.7 max uses /v1/messages, x-api-key.
-# Currently EMPTY on this plan — qwen-3.7-max is in the catalog but not callable.
-# If the user upgrades and it becomes live, add it here.
+# Open source models that need the Anthropic SDK path (different base URL,
+# different auth). Currently EMPTY on this plan — Qwen 3.6 / 3.7 are
+# closed source and live on Zen, not OCG.
 OCG_ANTHROPIC_MESSAGES_MODELS: list[str] = [
-    # "qwen-3.7-max",  # Pro+ on this plan — see comment above
+    # No open-source Anthropic-protocol models on the Go plan at this time.
 ]
 
 
