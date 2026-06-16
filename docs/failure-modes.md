@@ -1,47 +1,60 @@
-# Failure Modes & Mitigation - Aria Agent
+# Failure Modes & Mitigations
 
-This document outlines potential operational failures, how they manifest, and how to recover from them in the Aria Agent.
+How Hermes behaves when dependencies misbehave, and how failures are contained.
+The framework is built to **degrade, not crash**: every external effect has a
+fallback and every tool returns a string rather than propagating an exception to
+the caller.
 
----
+## Dependency failures
 
-## 1. Agent Loop Runway / Infinite Loops
+| Failure | Symptom | Mitigation |
+|---------|---------|------------|
+| Database unreachable | Startup probe times out (≤ `DB_PROBE_TIMEOUT`, default 2s) | `db.check_db()` logs a warning and selects in-memory stores; service runs normally without persistence |
+| DB driver not installed | `ImportError` on probe | Same fallback path — `db.py` imports the driver lazily, so the module still imports |
+| Redis / broker down | Worker can't dispatch | API is unaffected (no Redis dependency on the request path); `worker.py` still imports with no broker |
+| OpenAI/Anthropic unreachable or no key | Real LLM call fails | `AgentLLMClient` catches it, records the error in telemetry, and returns a mock response; routing degrades to keyword |
+| Web search endpoint down | `web_search` HTTP error | Caught; falls back to the deterministic mock knowledge base |
 
-- **Cause**: The agent fails to arrive at a terminal answer (e.g., gets stuck in a cycle of calling the same tool or correcting errors) and continues running.
-- **Impact**: Rapid accumulation of API token costs, rate-limiting blocks from model providers, and resource exhaustion on the execution worker.
-- **Detection**:
-  - High iteration count logs (e.g., loop index exceeding 10).
-  - Out-of-budget API usage alerts.
-- **Mitigation**: The framework enforces a hard-coded maximum iteration limit (e.g., `max_iterations=10`) per run. If the limit is reached without a final answer, the loop halts, returning an error response.
-- **Future Fix**: Implement budget-based thresholds (e.g., max cost of `$1.00` per run) and semantic loop detectors that identify repetitive tool call patterns.
+## Tool-level failures
 
----
+| Failure | Behaviour |
+|---------|-----------|
+| Unknown tool routed | `_execute_tool` catches `KeyError`, traces an error span, returns `"Error: Tool '<x>' not available."` (status `error`) |
+| Invalid tool arguments | `ToolRegistry.call_tool` raises `pydantic.ValidationError` before the tool runs; the agent surfaces it as a structured error span |
+| Calculator injection payload | AST walk raises `ValueError`; `calculator` returns `"Error evaluating expression: ..."` — no code executes |
+| Calculator division by zero / huge exponent | Returned as an error string, not an exception |
+| File path traversal / outside sandbox | `file_reader` returns `"Error: access denied ..."`; never reads outside the sandbox |
+| File not UTF-8 / missing | Returned as a descriptive error string |
 
-## 2. Tool Execution Exceptions
+## Approval-queue edge cases
 
-- **Cause**: A registered tool (e.g., `file_reader` or a mock API hook) raises an unhandled exception (e.g., `FileNotFoundError`, connection failure).
-- **Impact**: The agent execution thread crashes, losing conversation state and failing the task.
-- **Detection**:
-  - Unhandled traceback in agent logs.
-  - Client receives HTTP 500.
-- **Mitigation**: The tool execution block wraps calls in a try-except, catching exceptions and returning the sanitized error string to the agent context as a observation. This allows the agent to self-correct the error in the next iteration.
-- **Future Fix**: Implement strict tool exception classes and separate transient errors (which the agent can retry) from permanent configuration errors (which should fail-fast).
+| Case | Behaviour |
+|------|-----------|
+| Approval times out before decision | Status transitions `pending → expired` (lazily on read, or via the sweep task); approve/reject become no-ops returning the expired record |
+| Approve an already-approved/rejected approval | API returns `409 Conflict`; store `decide()` is idempotent (keeps the first decision) |
+| Approve/reject an unknown id | API returns `404 Not Found` |
+| Risky tool in free-running mode | Executes directly (no pause) — by design; gating is a per-request/mode choice |
 
----
+## API error contract
 
-## 3. Context Window Exceeded / Memory Overflow
+- `404` — unknown run, approval, or tool.
+- `409` — deciding an approval that is no longer pending.
+- `BaseApplicationError` subclasses are rendered as structured JSON by
+  `shared_core.errors.application_error_handler`.
 
-- **Cause**: The conversation history (stored in the agent's memory) grows too large due to lengthy system prompts, multiple tool calls, and large observation responses.
-- **Impact**: The LLM API returns token-limit errors, preventing the agent from completing the task.
-- **Detection**: LLM API returns HTTP 400 (context window exceeded).
-- **Mitigation**: Standard memory stores must be kept concise. Limit tool response lengths in logs.
-- **Future Fix**: Implement windowed summary memory (summarizing old turns using a secondary LLM call) or vector-based conversational retrieval (keeping only the most relevant historical turns in context).
+## Resource bounds
 
----
+| Risk | Bound |
+|------|-------|
+| Unbounded memory growth | `AgentMemory`/`PersistentMemory` apply a sliding window (`max_messages`, default 50) on read |
+| Runaway exponentiation | Calculator caps the `pow` exponent (1000) |
+| Oversized file reads | `file_reader` truncates to a byte cap (4000 chars) |
+| Oversized tool results in traces | Trace entries truncate result strings to 500 chars |
 
-## 4. Human-in-the-Loop Approval Gate Hangups
+## What is *not* mitigated (known gaps)
 
-- **Cause**: A tool call requires human verification (e.g., sending an email) but no human response is received.
-- **Impact**: The agent thread hangs indefinitely, holding worker resources open, or times out.
-- **Detection**: Running agent tasks remaining in `PENDING_APPROVAL` status for long intervals.
-- **Mitigation**: Implement a persistence layer for run state so the agent process can yield execution, persist to disk, and resume once the webhook callback fires.
-- **Future Fix**: Add automatic timeouts that reject/cancel pending approvals after a configured expiration limit (e.g., 24 hours), returning a timeout observation to the agent.
+- **No retries on tool execution** — a transient tool failure is returned as an
+  error for the run; retry/backoff is on the roadmap.
+- **No background expiry timer** — approval timeouts are realized on read or by
+  the periodic sweep task, not by a live timer.
+- **No auth / rate limiting on the API** — out of scope for a showcase.

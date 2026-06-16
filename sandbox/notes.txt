@@ -1,0 +1,3 @@
+Hermes sandbox file.
+This file lives inside the allowlisted sandbox directory.
+The file_reader tool can read it; anything outside the sandbox is rejected.

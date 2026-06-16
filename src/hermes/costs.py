@@ -1,27 +1,51 @@
-from shared_core.llm import estimate_llm_cost
+"""Per-run LLM cost tracking via shared_core.
+
+Wraps ``shared_core.llmmetrics.LLMMetrics`` (which defaults cost to
+``shared_core.pricing.calculate_cost``) so cost/token/latency aggregation matches
+the rest of the portfolio exactly. Each routing/response LLM call the agent makes
+is recorded here and surfaced in the run's cost summary.
+"""
+
+from typing import Any, Dict, Optional
+
+from shared_core.llmmetrics import LLMMetrics
+from shared_core.pricing import calculate_cost
 
 
 class CostTracker:
-    """Tracks estimated LLM costs during agent runs."""
+    """Accumulates LLM-call telemetry for a single agent run."""
 
-    def __init__(self):
-        self.total_cost = 0.0
-        self.calls: list[dict] = []
+    def __init__(self) -> None:
+        self._metrics = LLMMetrics()
 
-    def record_call(self, model: str, input_tokens: int, output_tokens: int, latency_ms: float):
-        cost = estimate_llm_cost(model, input_tokens, output_tokens)
-        self.total_cost += cost
-        self.calls.append({
-            "model": model,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cost_usd": cost,
-            "latency_ms": latency_ms,
-        })
+    def record_call(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        latency_ms: float,
+        *,
+        error: Optional[str] = None,
+    ) -> float:
+        """Record one LLM call and return its USD cost."""
+        call = self._metrics.record(
+            model=model,
+            prompt_tokens=input_tokens,
+            completion_tokens=output_tokens,
+            latency_ms=latency_ms,
+            error=error,
+        )
+        return call.cost_usd
 
-    def summary(self) -> dict:
-        return {
-            "total_cost": round(self.total_cost, 6),
-            "total_calls": len(self.calls),
-            "calls": self.calls,
-        }
+    @staticmethod
+    def estimate(model: str, input_tokens: int, output_tokens: int) -> float:
+        """Convenience passthrough to the shared pricing table."""
+        return calculate_cost(model, input_tokens, output_tokens)
+
+    def summary(self) -> Dict[str, Any]:
+        """Return the standard LLMMetrics summary for this run."""
+        summary = self._metrics.summary()
+        # Provide a couple of friendly aliases used by the API/dashboard.
+        summary["total_cost"] = summary["estimated_cost"]
+        summary["total_calls"] = summary["total_requests"]
+        return summary

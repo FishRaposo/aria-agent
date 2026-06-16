@@ -1,225 +1,196 @@
-# Aria Agent
+# Hermes Agent Framework
 
-> **ARIA** — Agentic Reasoning & Integration Architecture
+> A controlled AI agent framework: schema-validated tools with permission levels, LLM/keyword routing, a human-in-the-loop approval queue, persistent memory, cost tracking, and AgentTrace-compatible execution tracing.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
 ![Pydantic](https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.3+-37814a?logo=celery&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-7-dc382d?logo=redis&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-d71f00)
+![Tests](https://img.shields.io/badge/tests-152%20passing-success)
 
-## A lightweight framework for controlled AI agents with tool registration, Pydantic-validated schemas, human approval gates, conversation memory, and execution tracing.
+Hermes runs **fully offline by default** — no database, no Redis, no API keys — using deterministic simulation. When you supply a database it persists state; when you supply OpenAI/Anthropic keys it routes with a real LLM. Nothing about the demo or the test suite requires the network.
 
 ---
 
 ## Why This Exists
 
-Most agent frameworks (LangChain, CrewAI, AutoGen) optimize for flexibility and chaining at the cost of control. When an LLM agent can call arbitrary tools with arbitrary parameters, the system's blast radius becomes difficult to reason about. A production agent needs:
+Most agent frameworks optimize for flexibility and chaining at the cost of *control*. When an LLM agent can call arbitrary tools with arbitrary parameters, the system's blast radius becomes impossible to reason about. A production agent needs guardrails that demo frameworks skip:
 
-- **Schema-enforced tool calls** — every tool invocation validated before execution, not after.
-- **Human-in-the-loop gates** — critical actions require explicit approval, not silent auto-execution.
-- **Bounded memory** — conversation context that doesn't silently grow unbounded until the token limit explodes.
-- **Audit trails** — every tool call, approval decision, and agent turn recorded for post-hoc analysis.
+- **Schema-enforced tool calls** — every tool invocation validated against a Pydantic schema *before* execution, not after.
+- **Permission levels** — tools are classified `safe` vs `requires_approval`; risky actions can't silently auto-execute.
+- **A real approval queue** — risky tool calls become *pending approvals* that a human approves or rejects, with a timeout, persisted so they survive a restart.
+- **Bounded, persistent memory** — conversation context that survives restarts and never grows unbounded.
+- **Cost and trace observability** — every run emits an AgentTrace-compatible span tree and a token/cost summary.
 
-Aria Agent is a minimal, opinionated agent framework that prioritizes safety boundaries and observability over feature count. It's designed to show how a real agent system enforces constraints — the kind of engineering that production AI systems need but demo frameworks skip.
+Hermes is a minimal, opinionated framework that prioritizes **safety boundaries and observability** over feature count.
 
 ## What It Demonstrates
 
-- **Agent loop architecture** — reason-and-act loop with `HermesAgent.run()` orchestrating tool selection, approval checks, and memory updates in a single pass
-- **Tool registry with Pydantic validation** — `ToolRegistry` uses decorator-based registration with `type[BaseModel]` schemas; `call_tool()` validates arguments via `schema(**args).model_dump()` before execution
-- **Human approval gates** — `ApprovalGate.request_approval()` intercepts tool calls with configurable enable/disable, logging parameters for audit before granting execution
-- **Conversation memory** — `AgentMemory` tracks role-tagged messages (`user`, `system`) providing sliding-window context for multi-turn interactions
-- **Structured error handling** — `BaseApplicationError` hierarchy from shared-core with global FastAPI exception handler returning typed JSON errors
-- **Background task infrastructure** — Celery worker with Redis broker for async tool execution and long-running agent tasks
-- **Health observability** — `/health` endpoint probing both PostgreSQL and Redis with graceful degradation reporting
+- **Reason / route / approve / act loop** — `HermesAgent.run_structured()` routes a query to a tool, checks its permission against the approval gate, validates arguments, executes, traces, and records cost — in one auditable pass.
+- **Dual routing** — a deterministic `KeywordRouter` and an `LLMRouter` that follows the offline-first / real-when-keyed pattern (a `mocked_response` short-circuit, else `shared_core.llm.LLMClientFactory`, with graceful fallback to keyword routing on no-key / ImportError / failure).
+- **Tool permission levels** — `safe` tools run directly; `requires_approval` tools (task creation, email drafting) are gated.
+- **Real approval queue** — pending → approved/rejected/expired lifecycle with a configurable timeout, in DB or in-memory, exposed over the API.
+- **Free-running vs approval-gated modes** — selectable per request.
+- **Four+ real tools** — AST-safe calculator, sandboxed file reader, real-or-mock web search, persisting task creator, structured (never-sent) email drafter.
+- **Persistent state** — runs, tasks, approvals, and memory persist to PostgreSQL via SQLAlchemy + Alembic, with a transparent in-memory fallback selected by a startup DB probe.
+- **Cost tracking** via `shared_core.pricing` + `shared_core.llmmetrics`; **tracing** via `shared_core.tracing` (one span per run + per tool call).
 
 ## Architecture
 
 ```mermaid
 graph TD
-    Client["Client (API / CLI)"] --> API["FastAPI Gateway<br/>main.py"]
+    Client["Client (API / CLI / Worker)"] --> API["FastAPI Gateway<br/>main.py"]
     API --> Agent["HermesAgent<br/>agents.py"]
-    Agent --> Registry["ToolRegistry<br/>tools.py"]
-    Agent --> Memory["AgentMemory<br/>memory.py"]
+
+    Agent --> Router["Router<br/>routing.py"]
+    Router -->|"auto / llm"| LLM["AgentLLMClient<br/>llm_client.py"]
+    Router -->|"fallback / keyword"| KW["KeywordRouter"]
+    LLM -.->|"real when keyed"| Factory["shared_core.llm<br/>LLMClientFactory"]
+
     Agent --> Gate["ApprovalGate<br/>approvals.py"]
-    Registry -->|"schema(**args)"| Pydantic["Pydantic v2<br/>Validation"]
-    Pydantic -->|"validated args"| ToolFn["Tool Function"]
-    Gate -->|"approve/deny"| Agent
-    API --> DB["DatabaseManager<br/>shared_core"]
-    API --> Redis["RedisManager<br/>shared_core"]
-    Redis --> Worker["Celery Worker<br/>worker.py"]
-    API --> Config["AppConfig<br/>config.py"]
-    API --> Errors["Error Handler<br/>errors.py"]
+    Gate -->|"risky + gated"| AQ["Approval Queue<br/>store / store_db"]
+
+    Agent --> Registry["ToolRegistry<br/>tools.py"]
+    Registry -->|"schema(**args)"| Tools["Builtin Tools<br/>calculator · web_search<br/>file_reader · task_creator<br/>email_draft"]
+
+    Agent --> Memory["Memory<br/>memory.py"]
+    Agent --> Cost["CostTracker<br/>shared_core.llmmetrics"]
+    Agent --> Trace["TraceLog<br/>shared_core.tracing Spans"]
+
+    subgraph Persistence["Stores (DB default · in-memory fallback)"]
+        Runs["AgentRun"]
+        Memory --> MsgDB["MemoryMessage"]
+        AQ --> ApDB["ApprovalRecord"]
+        Tools --> TaskDB["CreatedTask"]
+    end
+    Agent --> Runs
+
+    Probe["db.py probe (2s)"] -->|"reachable"| PG["PostgreSQL"]
+    Probe -->|"unreachable"| Mem["In-memory stores"]
+    Worker["Celery Worker<br/>worker.py"] --> Agent
 ```
 
-### Request Flow
+### Request flow (`POST /agent/chat`)
 
-1. Client sends a message to `POST /agent/chat`
-2. `HermesAgent.run()` receives the user query and writes it to `AgentMemory`
-3. Agent determines which tool to invoke (currently keyword-based; LLM-based routing planned)
-4. `ApprovalGate.request_approval()` checks whether the action requires human sign-off
-5. If approved, `ToolRegistry.call_tool()` validates parameters against the tool's Pydantic schema
-6. Tool executes and its output is stored in memory as a `system` message
-7. Agent returns the formatted response to the client
+1. The query is written to memory (persistent or in-memory).
+2. The router selects a tool (LLM routing with keyword fallback, or pure keyword) — recorded as a `decision` span.
+3. The tool's permission level is checked against the approval gate. In `approval_gated` mode a `requires_approval` tool creates a **pending approval** and the run pauses, returning the approval id.
+4. Otherwise the tool's arguments are validated against its Pydantic schema and the tool executes — recorded as a `tool` span with latency.
+5. The result is stored in memory; the run (with full trace + cost) is persisted and returned.
 
 ## Tech Stack
 
-| Component | Technology | Justification |
-|-----------|-----------|---------------|
-| **API Framework** | FastAPI 0.100+ | Async-native, auto-generated OpenAPI docs, Pydantic integration |
-| **Validation** | Pydantic v2 | Tool argument schemas — validates before execution, not after |
-| **Task Queue** | Celery 5.3+ / Redis 7 | Async tool execution for long-running operations |
-| **Database** | PostgreSQL 16 (pgvector) | Agent run persistence, trace storage, future vector memory |
-| **Logging** | Loguru via shared-core | Structured logging with service name tags |
-| **Config** | pydantic-settings | Type-safe env var loading via `BaseAppConfig` |
-| **HTTP Client** | httpx 0.24+ | Async HTTP for external tool calls (web search, APIs) |
-| **Shared Library** | [shared-core](../shared-core/) | Config, database, redis, logging, errors — common across all showcase projects |
+| Component | Technology | Why |
+|-----------|-----------|-----|
+| **API** | FastAPI | Async, auto OpenAPI docs, Pydantic-native |
+| **Validation** | Pydantic v2 | Tool argument schemas validated before execution |
+| **Persistence** | SQLAlchemy 2.0 + Alembic / PostgreSQL 16 | Runs, tasks, approvals, memory — optional, with in-memory fallback |
+| **Task queue** | Celery 5.3 / Redis 7 | Async agent runs + approval-timeout sweeps |
+| **Routing / LLM** | `shared_core.llm` | Real OpenAI/Anthropic when keyed; deterministic sim otherwise |
+| **Cost** | `shared_core.pricing` + `shared_core.llmmetrics` | Single source of truth for token pricing + percentiles |
+| **Tracing** | `shared_core.tracing` | Canonical `Span`/`SpanType` (AgentTrace-compatible) |
+| **Shared library** | [shared-core](../shared-core/) | config, database, redis, errors, logging, health, testing |
 
 ## Local Setup
 
 ```bash
-# Enter the project directory
 cd hermes-agent-framework
 
-# Copy the environment template
+# (optional) copy env template — defaults already run offline
 cp .env.example .env
 
-# Start PostgreSQL and Redis containers
-make docker-up
+# create a venv and install shared-core + this project
+python -m venv .venv && . .venv/Scripts/activate   # Windows: .venv\Scripts\activate
+pip install -e "../shared-core[dev,docparse]" numpy
+pip install -e ".[dev]"
 
-# Install shared-core and project dependencies
-make install
+# run the demo (no DB, no keys, no network)
+python examples/run_demo.py
 
-# Run the API server
-make dev
-
-# In another terminal — run the demo
-make demo
+# run the API
+uvicorn hermes.main:app --reload --app-dir src
 ```
+
+To enable persistence: `make docker-up` (PostgreSQL + Redis), then `make migrate`. The service auto-detects the database on startup.
 
 ### Prerequisites
 
 - Python 3.10+
-- Docker and Docker Compose (for PostgreSQL and Redis)
-- `shared-core` cloned alongside this repo (sibling directory)
+- `shared-core` available as a sibling directory
+- Docker + Compose **only** if you want persistence / the async worker
 
 ## Demo
 
 ```bash
-make demo
+make demo   # or: python examples/run_demo.py
 ```
 
-Runs `examples/run_demo.py`, which:
+The demo exercises the full framework offline: keyword + simulated-LLM routing, every builtin tool, free-running vs approval-gated modes, the approval queue (pending → approve → execute and the reject path), cost tracking, and span emission. It asserts behaviour and exits non-zero on any regression.
 
-1. Creates a `ToolRegistry` and registers a `calculator` tool with a `CalculatorSchema` (Pydantic model with an `expression: str` field)
-2. Instantiates an `ApprovalGate` with approval enabled
-3. Creates a `HermesAgent` wired to the registry and gate
-4. Sends the query `"Please calculate 120 + 350"` through `agent.run()`
-5. The approval gate logs a `SECURITY CHECK REQUIRED` warning, then auto-approves
-6. The calculator tool validates and evaluates the expression
-7. Prints the agent's final output: `"I calculated the value to be 470."`
+Three focused example agents are also included:
 
-**Expected output:**
-
-```
---- Running Aria Agent Flow Demo ---
-Agent Final Output: I calculated the value to be 470.
-```
+| Example | Demonstrates |
+|---------|--------------|
+| `examples/research_agent.py` | Safe, free-running, read-only tools (search/read/calc) |
+| `examples/task_agent.py` | Persisting tasks in free-running mode |
+| `examples/approval_gated_agent.py` | Risky tools pausing for approval; approve + reject paths |
 
 ## Tests
 
 ```bash
-make test
+make test   # pytest -q
 ```
 
-Current test coverage (`tests/test_core.py`):
+**152 tests, all offline** (no network, DB, or keys — using `shared_core.testing` mocks):
 
-- **Health endpoint** — verifies `GET /health` returns 200 with `service: "aria-agent"` and a `dependencies` object containing database and redis status
-
-Planned test additions:
-
-- Tool registration and schema validation (valid/invalid args)
-- Approval gate enable/disable behavior
-- Agent memory accumulation across turns
-- Tool-not-found error handling
-- Full agent run integration tests
+- **Unit** — every core module: tools (incl. AST-calculator golden cases + sandbox-traversal safety), routing (golden keyword + sim-LLM decisions), memory (in-memory + persistent), approvals (lifecycle on both backends), costs/tracing (golden cost equals `shared_core.pricing`).
+- **Integration** — the agent loop end-to-end across both routers and both modes.
+- **API** — every endpoint, success + error (404/409) paths.
+- **Worker** — Celery app importable with no broker; real task bodies run eagerly.
+- **Stores** — in-memory + SQLite-backed roundtrips and the DB-availability probe/fallback.
 
 ## API Reference
 
-### `POST /agent/chat`
+| Method & path | Purpose |
+|---------------|---------|
+| `POST /agent/chat` | Run the agent on a message (`{message, session_id?, mode?}`); returns reply, status, route, trace, cost, and any pending approval |
+| `GET /agent/runs` | List recent runs (`?limit=`) |
+| `GET /agent/runs/{id}` | Fetch a run with full trace + cost |
+| `GET /agent/trace/{id}` | Fetch just the trace + cost for a run |
+| `GET /approvals` | List approvals (`?status=pending|approved|rejected|expired`) |
+| `GET /approvals/{id}` | Fetch a single approval |
+| `POST /approvals/{id}/approve` | Approve a pending approval and execute the gated tool |
+| `POST /approvals/{id}/reject` | Reject a pending approval |
+| `GET /tools` / `GET /tools/{name}` | Tool registry introspection (incl. permission level + schema) |
+| `GET /health` | Dependency health (DB + Redis) |
 
-Send a message to the agent for processing.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `message` | `str` (query) | The user's natural language input |
-
-**Response:**
-```json
-{
-  "reply": "I calculated the value to be 470."
-}
-```
-
-### `GET /health`
-
-Check service health with dependency status.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "aria-agent",
-  "dependencies": {
-    "database": "online",
-    "redis": "online"
-  }
-}
-```
-
-## Configuration
-
-Key environment variables from `.env.example`:
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `APP_NAME` | `aria-agent` | Service identifier in logs and health checks |
-| `ENV` | `development` | Environment name (development/staging/production) |
-| `DEBUG` | `true` | Enable debug mode |
-| `LOG_LEVEL` | `INFO` | Loguru log level |
-| `DATABASE_URL` | `postgresql+psycopg://...` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection (broker + cache) |
-| `OPENAI_API_KEY` | — | For LLM-backed agent routing (planned) |
-| `ANTHROPIC_API_KEY` | — | Alternative LLM provider (planned) |
+Everything a dashboard would need is exposed via this API (no frontend is included by design).
 
 ## Known Limitations
 
-- **Keyword-based routing** — `HermesAgent.run()` currently uses `if "calculate" in user_query.lower()` to select tools, not LLM-based reasoning. This is intentional for the MVP skeleton to demonstrate the framework mechanics without requiring API keys.
-- **Auto-approve only** — `ApprovalGate` logs a security warning but always returns `True`. Real approval queue (async with timeout) is planned for the display-ready milestone.
-- **In-memory state only** — `AgentMemory` uses a Python list; no persistence across restarts. PostgreSQL-backed memory is on the roadmap.
-- **Single tool registered** — only `calculator` exists in the demo. Five example tools (web_search_mock, calculator, file_reader, task_creator, email_draft_mock) are planned.
-- **No cost tracking** — cost hooks for LLM token usage are designed but not yet implemented.
-- **No trace logging** — per-run trace records (tool calls, durations, approval decisions) are planned but not yet wired.
-- **`eval()` in calculator** — the demo calculator uses `eval()` with restricted builtins. This is a known unsafe pattern acceptable only for demonstration; production tools must never evaluate arbitrary expressions.
+- **Single-step loop** — the agent routes to one tool per run rather than chaining many tool calls. The loop scaffolding (`max_steps`) is present; multi-hop planning is on the roadmap.
+- **Simulated routing by default** — without API keys the LLM router returns a deterministic decision derived from the keyword router. This is intentional for offline reproducibility; real routing activates when keys are set.
+- **Approval timeout is lazy** — pending approvals transition to `expired` when next read (or swept by the worker task), not via a background timer.
+- **No auth** — the API has no authentication; it's a showcase, not a deployment.
+- **Web search mock is small** — the offline knowledge base is a handful of canned entries; a real endpoint (`HERMES_SEARCH_API_URL`) replaces it.
 
 ## Roadmap
 
-- [x] **Phase 0** — Project skeleton, shared-core integration, FastAPI + health endpoint
-- [ ] **Phase 1** — Full tool registry with 5 example tools, Pydantic schema validation, retry policies
-- [ ] **Phase 2** — Async approval queue, agent memory persistence, cost tracking hooks
-- [ ] **Phase 3** — Per-run trace logging, CLI inspector, dashboard for run history
-- [ ] **Phase 4** — LLM-backed routing, prompt injection detection, tool permission levels
+- [x] **Phase 1** — Tool registry with permission levels, 5 builtin tools, Pydantic validation
+- [x] **Phase 2** — LLM/keyword routing, real approval queue, persistent memory, cost + trace
+- [x] **Phase 3** — Full REST surface, persistent stores with in-memory fallback, Celery worker, Alembic
+- [ ] **Phase 4** — Multi-hop planning loop, prompt-injection classifier on tool arguments, per-tool rate limits
+- [ ] **Phase 5** — Streaming responses, approval webhooks, run replay from persisted traces
 
-See [docs/roadmap.md](docs/roadmap.md) for detailed milestone breakdowns.
+See [docs/roadmap.md](docs/roadmap.md) for the detailed breakdown and [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md) for what was built.
 
 ## Related Projects
 
-Aria Agent is part of a [multi-project AI infrastructure portfolio](../). It integrates with:
+Part of a multi-project AI infrastructure portfolio built on [shared-core](../shared-core/):
 
-- **[async-workflow-engine](../async-workflow-engine/)** — orchestrates multi-step agent workflows as DAGs
-- **[llm-cost-latency-monitor](../llm-cost-latency-monitor/)** — tracks token costs and latency from agent LLM calls
-- **[github-issue-pr-agent](../github-issue-pr-agent/)** — downstream consumer that uses Aria agents to analyze GitHub issues and generate PRs
+- **[llm-cost-latency-monitor](../llm-cost-latency-monitor/)** — the cost/trace primitives Hermes reuses
+- **[github-issue-pr-agent](../github-issue-pr-agent/)** — a downstream consumer of agent runs
 
 ## License
 

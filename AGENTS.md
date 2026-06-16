@@ -1,108 +1,86 @@
-# AGENTS.md — aria-agent (hermes-agent-framework)
+# AGENTS.md — hermes-agent-framework
 
 ## What This Is
 
-Aria Agent (ARIA — Agentic Reasoning & Integration Architecture) — a lightweight AI agent framework with controlled tool execution, Pydantic-validated schemas, human approval gates, and conversation memory. Currently at skeleton stage with a working agent loop, tool registry, and approval gate — but using keyword-based routing (not LLM-based) and in-memory state only. Part of Wave 2 in the showcase portfolio build plan.
+Hermes is a controlled AI agent framework: a schema-validated tool registry with
+permission levels, dual routing (deterministic keyword + LLM with sim/real),
+a real human-in-the-loop approval queue, persistent memory, cost tracking, and
+AgentTrace-compatible execution tracing. It is **offline-first**: the demo and
+the full 152-test suite run with no database, no Redis, and no API keys, using
+deterministic simulation; real OpenAI/Anthropic and PostgreSQL paths activate
+when configured.
 
 ## Commands
 
 ```bash
-make install          # pip install -e ../shared-core && pip install -r requirements.txt
-make dev              # uvicorn on :8000 via src/hermes/main.py
-make test             # pytest (tests/test_core.py)
-make lint             # ruff check .
-make format           # ruff format .
-make typecheck        # pyright src/
-make docker-up        # docker compose up -d (Postgres pgvector:pg16 + Redis 7)
-make docker-down      # docker compose down
-make demo             # python examples/run_demo.py (calculator agent flow)
-make clean            # remove __pycache__, .pytest_cache, etc.
+make install     # pip install -e "../shared-core[dev,docparse]" numpy && pip install -e ".[dev]"
+make dev         # uvicorn hermes.main:app --reload --app-dir src (:8000)
+make test        # pytest -q  (152 tests, all offline)
+make lint        # ruff check src/hermes tests examples
+make format      # ruff format src/hermes tests examples
+make demo        # python examples/run_demo.py
+make migrate     # alembic upgrade head (optional — DB not required)
+make worker      # celery -A hermes.worker worker
+make docker-up   # Postgres (pgvector:pg16) + Redis 7
 ```
 
 ## Entry Point
 
-`src/hermes/main.py` — FastAPI app that imports:
-- `AppConfig` from `hermes.config` (extends `shared_core.config.BaseAppConfig`)
-- `ToolRegistry` from `hermes.tools`
-- `HermesAgent` from `hermes.agents`
-- `ApprovalGate` from `hermes.approvals`
-- `DatabaseManager`, `RedisManager` from `shared_core`
-- `setup_logging` from `shared_core.logging`
-
-Exposes two endpoints: `POST /agent/chat` and `GET /health`.
+`src/hermes/main.py` — FastAPI app. On import it runs the DB-availability probe
+(`hermes.db.check_db`) and selects persistent or in-memory stores, then wires the
+registry, router, approval gate, and per-request agents.
 
 ## Source Modules
 
 | File | Purpose |
 |------|---------|
-| `src/hermes/__init__.py` | Package marker |
-| `src/hermes/main.py` | FastAPI app, wires agent + registry + gate, health check |
-| `src/hermes/agents.py` | `HermesAgent` class — run loop with tool selection, approval, memory |
-| `src/hermes/tools.py` | `ToolRegistry` — decorator-based tool registration, Pydantic schema validation via `call_tool()` |
-| `src/hermes/memory.py` | `AgentMemory` — in-memory message list with `add_message()` and `get_context()` |
-| `src/hermes/approvals.py` | `ApprovalGate` — human-in-the-loop checkpoint (currently auto-approves) |
-| `src/hermes/config.py` | `AppConfig` extending `BaseAppConfig` with `APP_NAME = "hermes-agent-framework"` |
-| `src/hermes/errors.py` | `application_error_handler` — global FastAPI handler for `BaseApplicationError` |
-| `src/hermes/worker.py` | Celery app configured with Redis broker, `sample_background_task` stub |
-| `examples/run_demo.py` | Registers calculator tool, runs agent with approval gate |
-| `tests/test_core.py` | Health endpoint test |
+| `main.py` | FastAPI app + all endpoints; store/agent wiring |
+| `agents.py` | `HermesAgent` — reason/route/approve/act loop; `RunResult` |
+| `routing.py` | `KeywordRouter`, `LLMRouter`, `RouteDecision`, `build_router` |
+| `llm_client.py` | `AgentLLMClient` — offline-first LLM wrapper |
+| `tools.py` | `ToolRegistry`, `Permission`, `build_default_registry` |
+| `builtin_tools/` | calculator (AST), web_search, file_reader (sandboxed), task_creator, email_draft |
+| `approvals.py` | `ApprovalGate` (free-running / approval-gated) |
+| `memory.py` | `AgentMemory` + `PersistentMemory` + `get_memory` |
+| `store.py` / `store_db.py` | in-memory + DB stores for runs/tasks/approvals |
+| `db.py` | DB probe + store selection |
+| `models.py` | SQLAlchemy models (agent_runs, memory_messages, approvals, created_tasks) |
+| `costs.py` | `CostTracker` over `shared_core.llmmetrics` |
+| `tracing.py` | `TraceLog` → `shared_core.tracing.Span` trees |
+| `worker.py` | Celery tasks: `hermes.run_agent`, `hermes.sweep_expired_approvals` |
+| `config.py` | `AppConfig(BaseAppConfig)` — agent mode/routing, probe timeout |
 
-## Docker Services
+## API Endpoints
 
-- **postgres**: `pgvector/pgvector:pg16` on `:5432` (container: `template_postgres`)
-- **redis**: `redis:7-alpine` on `:6379` (container: `template_redis`)
+`POST /agent/chat` · `GET /agent/runs` · `GET /agent/runs/{id}` ·
+`GET /agent/trace/{id}` · `GET /approvals` · `GET /approvals/{id}` ·
+`POST /approvals/{id}/approve` · `POST /approvals/{id}/reject` ·
+`GET /tools` · `GET /tools/{name}` · `GET /health`
 
-## Layout
+## shared-core usage
 
-```
-src/hermes/
-├── __init__.py          # Package init
-├── main.py              # FastAPI app, POST /agent/chat, GET /health
-├── agents.py            # HermesAgent.run() — reason-and-act loop
-├── tools.py             # ToolRegistry.register(), .call_tool()
-├── memory.py            # AgentMemory — message list store
-├── approvals.py         # ApprovalGate.request_approval()
-├── config.py            # AppConfig (pydantic-settings)
-├── errors.py            # Global error handler
-└── worker.py            # Celery worker + sample task
-docs/
-├── architecture.md
-├── design-decisions.md
-├── failure-modes.md
-├── roadmap.md
-└── security.md
-examples/
-└── run_demo.py          # Calculator agent demo
-tests/
-└── test_core.py         # Health endpoint test
-```
+config (`BaseAppConfig`), database (`Base`, mixins, `DatabaseManager`), errors
+(`application_error_handler`), logging (`setup_logging`), health (`check_health`),
+llm (`LLMClientFactory`), pricing (`calculate_cost`), llmmetrics (`LLMMetrics`),
+tracing (`Span`, `SpanType`, `new_trace_id`), clients (`BaseHTTPClient`), tasks
+(`create_celery_app`), testing (`MockDatabase`, `MockRedisClient`).
 
-## Current State
+## Tests
 
-**Skeleton with working proof-of-concept.** The core agent loop works end-to-end for a single tool (calculator), but:
-- Tool routing is keyword-based (`if "calculate" in user_query.lower()`), not LLM-backed
-- `ApprovalGate` always auto-approves (logs warning but returns `True`)
-- `AgentMemory` is in-memory only (Python list, no persistence)
-- Worker has a stub task only (`sample_background_task`)
-- No tracing, cost tracking, or retry policies implemented yet
-- Only one tool registered in the demo (calculator)
+`tests/` — unit (tools incl. AST + sandbox safety, routing, memory, approvals,
+costs/tracing, stores), integration (agent loop), API (every endpoint + errors),
+worker. Offline via `shared_core.testing` mocks. Run `make test`.
 
-## Key Dependencies
+## Conventions
 
-Beyond shared-core:
-- `celery>=5.3.0` — background task execution for async tool runs
-- `loguru>=0.7.0` — structured logging in agent and approval modules
-- `httpx>=0.24.0` — async HTTP client for external tool calls (web_search_mock etc.)
-- `pyyaml>=6.0.0` — planned for workflow definition files
+- Offline-first / real-when-keyed for every external effect.
+- Tools return strings (never raise to the caller); the registry validates args.
+- Add new tools via `build_default_registry`; mark side-effecting tools
+  `Permission.REQUIRES_APPROVAL`.
+- Keep cost on `shared_core.llmmetrics` and tracing on `shared_core.tracing`;
+  golden tests assert numeric parity with `shared_core.pricing`.
 
-## When to Update This AGENTS.md
+## When to Update This File
 
-Update when:
-- New tools are added to the registry or `examples/`
-- Agent routing changes from keyword-based to LLM-based
-- `AgentMemory` gains persistence (database-backed)
-- `ApprovalGate` gets a real approval queue (async with timeout)
-- New modules added under `src/hermes/` (tracing/, costs/, prompts/)
-- Celery worker gets real agent tasks instead of stub
-- New API endpoints added beyond `/agent/chat` and `/health`
-- Docker Compose services change (e.g., adding a message queue for approvals)
+Update when tools/endpoints/modes change, the persistence model changes, new
+shared-core modules are adopted, or the routing strategy changes.

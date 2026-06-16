@@ -26,3 +26,11 @@ venv/
 dist/
 build/
 *.egg-info/
+
+# Local databases (SQLite fallbacks / scratch)
+*.db
+*.sqlite3
+
+# Sandbox runtime artifacts (keep the committed sample file)
+sandbox/*
+!sandbox/notes.txt

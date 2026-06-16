@@ -1,7 +1,7 @@
 [project]
-name = "aria-agent"
-version = "0.1.0"
-description = "Agentic Reasoning & Integration Architecture — controlled AI agent framework with tool registry, approval gates, memory, and execution tracing"
+name = "hermes-agent-framework"
+version = "1.0.0"
+description = "Controlled AI agent framework — tool registry with permission levels, LLM/keyword routing, human approval queue, persistent memory, cost tracking, and AgentTrace-compatible execution tracing"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.100.0",
@@ -13,12 +13,21 @@ dependencies = [
     "redis>=5.0.0",
     "celery>=5.3.0",
     "httpx>=0.24.0",
-    "pyyaml>=6.0.0"
+    "pyyaml>=6.0.0",
+    "alembic>=1.13.0",
+    "psycopg[binary]>=3.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
-    "pyright>=1.1.0"
+    "pyright>=1.1.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,77 +1,115 @@
 # Design Decisions
 
-This document records the key architectural choices made during the development of the Aria Agent (ARIA — Agentic Reasoning & Integration Architecture). Each decision uses ADR (Architecture Decision Record) format.
+Key architectural choices, in ADR (Architecture Decision Record) form. Each
+records the context, the decision, and the consequences.
 
-## Decision 1: Use of Shared Core Utilities
+## ADR 1 — Offline-first, real-when-keyed
 
-- **Context**: Every project in the showcase portfolio needs boilerplate code for database connections, logging configuration, Redis management, and error handling. Duplicating this across 12 repositories creates maintenance burden and inconsistency.
-- **Options**:
-  1. Duplicate utilities inside each repository.
-  2. Implement a shared `shared-core` library that projects install as an editable package.
-  3. Use a monorepo with a single package manager.
-- **Choice**: Option 2.
-- **Tradeoff**: Single source of truth for config, database, redis, logging, and error modules. Bug fixes propagate instantly to all projects via `pip install -e ../shared-core`. However, every developer must clone `shared-core` alongside the project, and GitHub Actions CI requires special handling for the relative path install.
+**Context.** A showcase must run on any machine with no credentials, yet still
+demonstrate real provider integration.
 
-## Decision 2: Docker Compose for Local Isolation
+**Decision.** Every external effect has a deterministic offline default and a real
+path gated on configuration. The `AgentLLMClient` mirrors
+`llm-cost-latency-monitor`'s SDK: a `mocked_response` short-circuits to a
+simulated response; otherwise the real provider runs via
+`shared_core.llm.LLMClientFactory`, falling back to mock on ImportError / no key.
+The DB probe falls back to in-memory stores; `web_search` falls back to a canned
+knowledge base.
 
-- **Context**: The agent framework requires PostgreSQL (for future persistence) and Redis (for Celery broker and caching). Developers need reproducible local environments without polluting their host machines.
-- **Options**:
-  1. Require host-installed PostgreSQL and Redis.
-  2. Provide a `docker-compose.yml` with containerized services.
-  3. Use SQLite and a mock Redis for development.
-- **Choice**: Option 2.
-- **Tradeoff**: High reproducibility and zero host dependency pollution. Uses pgvector:pg16 to match production needs (vector storage for future memory embeddings). Costs ~200MB disk for Docker images and requires Docker Desktop, but eliminates "works on my machine" problems.
+**Consequences.** The demo and all 152 tests run with no network, DB, or keys.
+The real paths exist and are reachable by setting env vars, but are never on the
+critical path for CI.
 
-## Decision 3: Decorator-Based Tool Registry with Pydantic Schemas
+## ADR 2 — Lean on `shared-core`, don't re-mock
 
-- **Context**: Agent frameworks need a way to register tools that the agent can call. The registration mechanism must enforce type safety — if the agent (or an LLM) produces invalid parameters, the system should reject them before execution, not during.
-- **Options**:
-  1. Free-form dictionary of tool functions with no schema enforcement.
-  2. JSON Schema definitions validated at runtime with `jsonschema`.
-  3. Pydantic `BaseModel` subclasses paired with a decorator-based registry.
-  4. Function signature inspection with `inspect.signature()` for auto-generated schemas.
-- **Choice**: Option 3 — `ToolRegistry.register(name, schema)` decorator that stores both the callable and its `type[BaseModel]` schema. `call_tool()` instantiates the schema with provided args (`schema(**args)`) and passes `validated_args.model_dump()` to the function.
-- **Tradeoff**: Pydantic v2 gives sub-millisecond validation, rich error messages, and automatic JSON Schema generation (useful for LLM function-calling prompts). The decorator pattern (`@registry.register("name", Schema)`) is idiomatic Python and keeps tool definitions co-located with their implementations. Downside: each tool requires a separate `BaseModel` class, which is more boilerplate than signature inspection — but the explicitness is worth it for safety-critical agent systems where you want to see exactly what parameters a tool accepts.
+**Context.** Several primitives (token pricing, latency percentiles, span schema,
+config, DB session management, test mocks) are common across the portfolio.
 
-## Decision 4: Human Approval Gates as a First-Class Concept
+**Decision.** Cost goes through `shared_core.llmmetrics` + `shared_core.pricing`;
+tracing uses `shared_core.tracing.Span`/`SpanType`; persistence uses
+`shared_core.database` `Base`/mixins/`DatabaseManager`; tests use
+`shared_core.testing.MockDatabase`/`MockRedisClient`. Golden tests assert our
+cost numbers equal `shared_core.pricing.calculate_cost` so a shared-core change
+that alters pricing surfaces as a test failure here.
 
-- **Context**: In production agent systems, certain tool calls are high-risk (sending emails, creating tasks, modifying files). Allowing an LLM to execute these without human oversight is unacceptable for most enterprise deployments. Many agent frameworks treat approval as an afterthought or plugin — Hermes makes it a core architectural concept.
-- **Options**:
-  1. No approval — trust the agent to make correct decisions.
-  2. Global enable/disable flag for all tool calls.
-  3. Per-tool permission levels (e.g., `read`, `write`, `destructive`) with configurable approval requirements.
-  4. A dedicated `ApprovalGate` class that intercepts every tool call.
-- **Choice**: Option 4 for the skeleton, with Option 3 planned for the display-ready milestone. The current `ApprovalGate` class has an `enabled` flag and a `request_approval(action_name, parameters)` method that logs the action and auto-approves. This establishes the architectural seam where real approval logic will be inserted.
-- **Tradeoff**: The approval gate adds a synchronous check to every tool call, which introduces latency. For the current auto-approve implementation, this is negligible. For a real async approval queue (planned), the agent run will need to support suspension and resumption — a significant architectural change, but one that the current `request_approval()` interface is designed to accommodate.
+**Consequences.** No duplicated pricing tables or span schemas; numeric results
+stay consistent with sibling projects.
 
-## Decision 5: In-Memory Agent Memory (Deferred Persistence)
+## ADR 3 — AST calculator instead of `eval()`
 
-- **Context**: The agent needs conversation context to produce coherent multi-turn responses. The memory store must track message roles (`user`, `system`, `assistant`) and provide the context window for LLM prompts.
-- **Options**:
-  1. PostgreSQL-backed memory from day one.
-  2. Redis-backed ephemeral memory.
-  3. In-memory Python list with persistence added later.
-  4. Vector store (pgvector) for semantic memory retrieval.
-- **Choice**: Option 3 — `AgentMemory` is a simple class with a `messages: List[Dict[str, str]]` list, `add_message(role, content)`, and `get_context()`.
-- **Tradeoff**: Fastest possible iteration for the skeleton phase. No database dependency for the core agent loop to function. The interface (`add_message`, `get_context`) is stable — swapping the backing store to PostgreSQL or Redis requires changing only the implementation, not the callers. Downside: memory is lost on process restart, and there's no sliding-window or token-budget enforcement yet. Both are planned for Phase 2.
+**Context.** The original calculator used `eval()` with restricted builtins — a
+known-unsafe pattern.
 
-## Decision 6: Keyword-Based Tool Selection (MVP Only)
+**Decision.** Replace it with an `ast.parse(mode="eval")` walk that whitelists
+only numeric literals and a fixed set of binary/unary operators. Names, calls,
+attribute access, subscripts, and comprehensions are rejected. A `pow` exponent
+cap guards against resource exhaustion (`9 ** 100000`).
 
-- **Context**: The agent run loop needs to determine which tool to invoke based on the user's message. Production systems use LLM function-calling or ReAct prompting for this, but requiring an LLM API key for the skeleton demo creates a barrier to running the project.
-- **Options**:
-  1. LLM-based tool selection from day one (requires API keys).
-  2. Rule-based / keyword matching as a placeholder.
-  3. Embedding similarity between user query and tool descriptions.
-- **Choice**: Option 2 — `if "calculate" in user_query.lower()` in `HermesAgent.run()`.
-- **Tradeoff**: The demo works without any external API keys, which is critical for a portfolio project that reviewers should be able to run immediately. The keyword matching is clearly a placeholder — it handles exactly one tool and one keyword. The `run()` method is designed to be replaced with LLM-based routing without changing the tool registry, approval gate, or memory interfaces. This intentional separation of concerns is itself a design demonstration.
+**Consequences.** The tool cannot execute arbitrary code. Golden tests cover both
+correct arithmetic and rejection of injection payloads.
 
-## Decision 7: Celery for Background Tool Execution
+## ADR 4 — Sandboxed file reader
 
-- **Context**: Some tool calls (web searches, file processing, external API calls) may take seconds or minutes. Blocking the FastAPI event loop during these operations degrades the API for all clients.
-- **Options**:
-  1. Run all tools synchronously in the request handler.
-  2. Use `asyncio` tasks within the FastAPI process.
-  3. Use Celery with Redis as the broker for true background execution.
-  4. Use a custom task queue (like the sibling `async-workflow-engine`).
-- **Choice**: Option 3 — `worker.py` configures a Celery app with JSON serialization and UTC timezone.
-- **Tradeoff**: Celery is battle-tested and well-understood, with built-in retry logic, result backends, and monitoring (Flower). It's more operational overhead than `asyncio` tasks, but provides process isolation — a crashed tool execution doesn't take down the API. The Redis dependency is already present for caching, so no additional infrastructure is needed. The `async-workflow-engine` (Option 4) will be used for multi-step workflows, while Celery handles individual tool executions.
+**Context.** A file-reading tool is a classic path-traversal and secret-exfil
+vector.
+
+**Decision.** `file_reader` resolves every path against an allowlisted sandbox
+root (`HERMES_SANDBOX_DIR`, default `./sandbox`) and verifies the resolved path
+is contained within it via `Path.is_relative_to`. Absolute paths and `..`
+traversal are rejected; only UTF-8 text up to a byte cap is returned.
+
+**Consequences.** Even a fully LLM-controlled path argument cannot escape the
+sandbox. Parametrized tests assert traversal payloads never leak outside content.
+
+## ADR 5 — Permission levels + a real approval queue
+
+**Context.** "Human-in-the-loop" is meaningless if the gate always returns `True`
+(the original behaviour).
+
+**Decision.** Tools declare a `Permission` (`safe` / `requires_approval`). In
+`approval_gated` mode, a risky tool creates a *pending approval* in a store with
+a timeout; the run pauses and returns the approval id. Approve/reject transition
+the record and (for approve) execute the gated tool. The lifecycle is identical
+across in-memory and DB backends.
+
+**Consequences.** Risky actions cannot silently auto-execute under gating.
+Approvals are first-class, queryable resources that survive restarts when a DB is
+present.
+
+## ADR 6 — DB-default with in-memory fallback via a startup probe
+
+**Context.** Persistence is desirable but must not be a hard requirement for the
+demo/tests.
+
+**Decision.** A 2-second connect-timeout probe selects the backend at startup.
+Stores share an interface (dict-returning), so the rest of the app is backend
+agnostic. The probe uses a throwaway engine and lazy driver import, so importing
+`db.py` never needs Postgres.
+
+**Consequences.** One code path, two backends. Persistence is opt-in by simply
+making a database reachable; nothing else changes.
+
+## ADR 7 — Dual routing with keyword fallback
+
+**Context.** Pure keyword routing is brittle; pure LLM routing needs keys and can
+hallucinate tools.
+
+**Decision.** `LLMRouter` is the default (`auto`) but always validates the chosen
+tool against the registry and falls back to `KeywordRouter` on no decision /
+invalid JSON / unknown tool / exception. The keyword router orders intents so
+ambiguous phrasing resolves predictably.
+
+**Consequences.** Routing is robust offline and online, and a misbehaving LLM
+degrades to deterministic behaviour rather than crashing or calling a bogus tool.
+
+## ADR 8 — Backward-compatible agent surface
+
+**Context.** The original tests and demo call `HermesAgent(registry, gate).run(query)`
+and expect a string.
+
+**Decision.** Keep `run()` returning a string; add `run_structured()` returning a
+`RunResult` for the API. The legacy `ApprovalGate.request_approval()` boolean API
+is retained alongside the new queue-backed `evaluate()`.
+
+**Consequences.** No breakage of the original contract while exposing the richer
+structured result the API and dashboard need.

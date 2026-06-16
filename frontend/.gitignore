@@ -1,0 +1,20 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# testing
+/coverage
+/playwright-report
+/test-results
+/.playwright
+
+# misc
+.DS_Store
+*.pem
+.env*.local
+.vercel
