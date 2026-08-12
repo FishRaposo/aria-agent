@@ -48,7 +48,7 @@ class SkillMetadata:
     scope: str
     source: Path
     directory: Path
-    activation_hints: Optional[str] = None
+    compatibility: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +78,7 @@ class SkillContextReport:
 
     visible_skill_count: int
     eager_hints_used: bool
+    eager_hint_payloads: Tuple[Dict[str, object], ...]
     loaded_instruction_bodies: Tuple[Dict[str, object], ...]
     provider: str
     source_scopes: Tuple[str, ...]
@@ -87,6 +88,7 @@ class SkillContextReport:
         return {
             "visible_skill_count": self.visible_skill_count,
             "eager_hints_used": self.eager_hints_used,
+            "eager_hint_payloads": [dict(item) for item in self.eager_hint_payloads],
             "loaded_instruction_bodies": [
                 dict(item) for item in self.loaded_instruction_bodies
             ],
@@ -204,8 +206,10 @@ class SkillRegistry:
                 "scope": skill.scope,
                 "source": str(skill.source),
             }
-            if eager and skill.activation_hints:
-                entry["activation_hints"] = skill.activation_hints
+            if eager:
+                activation_hints = _load_activation_hints(skill)
+                if activation_hints:
+                    entry["activation_hints"] = activation_hints
             entries.append(entry)
         return tuple(entries)
 
@@ -241,11 +245,13 @@ class SkillSession:
         self.provider = provider
         self._activated_this_turn = set()
         self._loaded_this_turn = []
+        self._eager_hint_payloads = []
 
     def begin_turn(self) -> None:
         """Reset per-turn activation evidence and duplicate suppression."""
         self._activated_this_turn.clear()
         self._loaded_this_turn.clear()
+        self._eager_hint_payloads.clear()
 
     def activate(self, name: str) -> SkillActivation:
         """Explicitly load a skill body once in this turn."""
@@ -269,6 +275,7 @@ class SkillSession:
                 "scope": skill.scope,
                 "source": str(skill.source),
                 "chars": len(document.instructions),
+                "instructions": document.instructions,
             }
         )
         return SkillActivation(
@@ -301,13 +308,31 @@ class SkillSession:
     ) -> PreparedSkillTurn:
         """Prepare optional explicit skill context for one ARIA run."""
         self.begin_turn()
+        prepared_context = list(context)
+        if self.eager:
+            for entry in self.registry.catalog(eager=True):
+                hint = entry.get("activation_hints")
+                if not hint:
+                    continue
+                payload = f"Skill activation hint for /{entry['name']}:\n{hint}"
+                prepared_context.append({"role": "system", "content": payload})
+                self._eager_hint_payloads.append(
+                    {
+                        "name": entry["name"],
+                        "scope": entry["scope"],
+                        "source": entry["source"],
+                        "content": payload,
+                    }
+                )
         activation = self.activate_explicit(query)
         if activation is None or activation.instructions is None:
-            return PreparedSkillTurn(query=query, context=context, report=self.report())
+            return PreparedSkillTurn(
+                query=query, context=prepared_context, report=self.report()
+            )
         return PreparedSkillTurn(
             query=activation.remaining_prompt or query,
             context=[
-                *context,
+                *prepared_context,
                 {"role": "system", "content": activation.instructions},
             ],
             report=self.report(),
@@ -316,12 +341,12 @@ class SkillSession:
     def report(self) -> SkillContextReport:
         """Report only instruction bodies actually loaded in the current turn."""
         scopes = tuple(dict.fromkeys(skill.scope for skill in self.registry))
-        hints_used = self.eager and any(
-            skill.activation_hints is not None for skill in self.registry
-        )
         return SkillContextReport(
             visible_skill_count=len(self.registry),
-            eager_hints_used=hints_used,
+            eager_hints_used=bool(self._eager_hint_payloads),
+            eager_hint_payloads=tuple(
+                dict(item) for item in self._eager_hint_payloads
+            ),
             loaded_instruction_bodies=tuple(
                 dict(item) for item in self._loaded_this_turn
             ),
@@ -349,7 +374,9 @@ def _discover_scope(root: Path, scope: str) -> Iterator[SkillMetadata]:
             if not source.is_file():
                 continue
             try:
-                document = parse_skill_markdown(source.read_text(encoding="utf-8"))
+                document = _parse_metadata_frontmatter(
+                    _read_frontmatter_only(source)
+                )
             except (OSError, UnicodeError, SkillValidationError) as exc:
                 LOGGER.warning("Skipping invalid skill %s: %s", source, exc)
                 continue
@@ -362,8 +389,49 @@ def _discover_scope(root: Path, scope: str) -> Iterator[SkillMetadata]:
                 scope=scope,
                 source=source,
                 directory=directory,
-                activation_hints=_extract_activation_hints(document),
+                compatibility=document.compatibility,
             )
+
+
+def _read_frontmatter_only(source: Path, *, max_chars: int = 8192) -> str:
+    """Read through the closing frontmatter delimiter, never the body."""
+    chunks = []
+    chars = 0
+    delimiters = 0
+    with source.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            chars += len(line)
+            if chars > max_chars:
+                raise SkillValidationError(
+                    f"frontmatter exceeds the {max_chars}-character discovery cap"
+                )
+            chunks.append(line)
+            if line.rstrip("\r\n") == "---":
+                delimiters += 1
+                if delimiters == 2:
+                    break
+    if delimiters != 2:
+        raise SkillValidationError("SKILL.md must contain closed YAML frontmatter")
+    return "".join(chunks)
+
+
+def _parse_metadata_frontmatter(raw: str) -> SkillDocument:
+    """Reuse strict parsing while supplying no level-two instruction body."""
+    return parse_skill_markdown(f"{raw.rstrip()}\n")
+
+
+def _load_activation_hints(
+    skill: SkillMetadata, *, max_read_chars: int = 16384
+) -> Optional[str]:
+    """Read a bounded prefix only for an explicitly eager level-1.5 catalogue."""
+    try:
+        with skill.source.open("r", encoding="utf-8") as handle:
+            prefix = handle.read(max_read_chars)
+        document = parse_skill_markdown(prefix)
+    except (OSError, UnicodeError, SkillValidationError) as exc:
+        LOGGER.warning("Unable to read eager hints from %s: %s", skill.source, exc)
+        return None
+    return _extract_activation_hints(document)
 
 
 def _extract_activation_hints(

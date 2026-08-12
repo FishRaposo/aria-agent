@@ -19,12 +19,15 @@ clone.
 
 - Required `name` and `description` validation for YAML-frontmatter
   `SKILL.md` files.
-- Metadata-only discovery, optional eager activation hints, and explicit lazy
-  instruction loading.
+- Bounded frontmatter-only discovery, optional bounded eager activation hints,
+  and explicit full instruction loading only after activation.
 - Opt-in trusted project scope plus user and built-in scopes, with deterministic
   first-wins precedence and name deduplication.
 - Bounded resource-path listing and explicit truncation evidence.
-- Per-turn duplicate activation suppression and a structured context report.
+- Per-turn duplicate activation suppression and a structured context report
+  containing the exact hint and instruction payloads actually delivered.
+- Exact-once delivery of activated instructions to ARIA's LLM routing and
+  response request context while preserving the existing approval/tool loop.
 - Offline operation with no API key, provider, CLI, database, or network
   dependency.
 
@@ -33,7 +36,7 @@ clone.
 | Reviewed source | ARIA destination | Treatment |
 |---|---|---|
 | `src/skills.js` | `src/aria/skills.py` | Reimplemented parsing, discovery, hints, lazy loading, scope precedence, and bounded resource listing in Python. |
-| `src/agent.js` | `src/aria/skills.py`, `src/aria/agents.py` | Reimplemented explicit activation, same-turn deduplication, context reporting, and optional agent-session integration. |
+| `src/agent.js` | `src/aria/skills.py`, `src/aria/agents.py`, `src/aria/routing.py` | Reimplemented explicit activation, same-turn deduplication, truthful context reporting, and delivery into ARIA's live request context. |
 | `src/tools.js` | `src/aria/skills.py` | Retained only bounded resource metadata used by activation; no shell, file-reading, or fetch executors were ported. |
 | `test/skills.test.js` | `tests/test_skills.py` | Re-expressed selected observable contracts as offline pytest tests. |
 | `README.md`, `AGENTS.md` | `README.md`, `AGENTS.md` | Added ARIA-specific usage and verification guidance. |

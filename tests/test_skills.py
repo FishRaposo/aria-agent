@@ -1,8 +1,10 @@
 """Offline contract tests for ARIA's progressive-disclosure skill layer."""
 
 import os
+import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -87,6 +89,20 @@ SECRET LEVEL TWO BODY
     )
     registry = SkillRegistry.discover(user_root=workspace_tmp_root)
 
+    # Discovery is metadata-only. A hint changed after discovery must be the one
+    # observed by the explicit eager catalogue read, never a cached body read.
+    source = workspace_tmp_root / ".skills" / "release-notes" / "SKILL.md"
+    source.write_text(
+        _skill_text(
+            "release-notes",
+            "Create release notes.",
+            "# When to Use\n\nUse for signed tagged releases.\n\n"
+            "# Instructions\n\nNEW SECRET LEVEL TWO BODY",
+            "Requires a Git checkout.",
+        ),
+        encoding="utf-8",
+    )
+
     level_one = registry.catalog()
     assert level_one == (
         {
@@ -102,7 +118,7 @@ SECRET LEVEL TWO BODY
 
     eager = registry.catalog(eager=True)
     assert eager[0]["activation_hints"] == (
-        "Compatibility: Requires a Git checkout.\nUse for tagged releases."
+        "Compatibility: Requires a Git checkout.\nUse for signed tagged releases."
     )
     assert "SECRET LEVEL TWO BODY" not in repr(eager)
 
@@ -176,7 +192,8 @@ def test_explicit_activation_loads_once_per_turn_and_report_is_truthful(
 
     before = session.report()
     assert before.visible_skill_count == 1
-    assert before.eager_hints_used is True
+    assert before.eager_hints_used is False
+    assert before.eager_hint_payloads == ()
     assert before.loaded_instruction_bodies == ()
     assert before.provider == "offline-test"
     assert before.source_scopes == ("user",)
@@ -199,6 +216,7 @@ def test_explicit_activation_loads_once_per_turn_and_report_is_truthful(
                 workspace_tmp_root / ".skills" / "release-notes" / "SKILL.md"
             ),
             "chars": len("# Instructions\n\nONLY LOAD EXPLICITLY"),
+            "instructions": "# Instructions\n\nONLY LOAD EXPLICITLY",
         },
     )
 
@@ -250,3 +268,166 @@ def test_prepare_turn_adds_only_explicit_skill_instructions_to_agent_context(
         },
     ]
     assert explicit.report.loaded_instruction_bodies[0]["name"] == "release-notes"
+    assert explicit.report.loaded_instruction_bodies[0]["instructions"] == (
+        "# Instructions\n\nUse the safe release format."
+    )
+
+
+def test_eager_hints_are_injected_and_reported_only_when_used(
+    workspace_tmp_root: Path,
+) -> None:
+    _write_skill(
+        workspace_tmp_root,
+        "release-notes",
+        body="# When to Use\n\nUse for signed releases.\n\n# Instructions\n\nPRIVATE BODY",
+    )
+    registry = SkillRegistry.discover(user_root=workspace_tmp_root)
+
+    ordinary = registry.create_session(eager=False).prepare_turn("hello", [])
+    assert ordinary.context == []
+    assert ordinary.report.eager_hints_used is False
+    assert ordinary.report.eager_hint_payloads == ()
+
+    eager = registry.create_session(eager=True).prepare_turn("hello", [])
+    assert eager.context == [
+        {
+            "role": "system",
+            "content": "Skill activation hint for /release-notes:\nUse for signed releases.",
+        }
+    ]
+    assert eager.report.eager_hints_used is True
+    assert eager.report.eager_hint_payloads == (
+        {
+            "name": "release-notes",
+            "scope": "user",
+            "source": str(
+                workspace_tmp_root / ".skills" / "release-notes" / "SKILL.md"
+            ),
+            "content": "Skill activation hint for /release-notes:\nUse for signed releases.",
+        },
+    )
+    assert "PRIVATE BODY" not in repr(eager.context)
+
+
+def test_agent_delivers_activated_body_once_and_keeps_approval_gate(
+    workspace_tmp_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    logger = SimpleNamespace(
+        info=lambda *args, **kwargs: None,
+        warning=lambda *args, **kwargs: None,
+        error=lambda *args, **kwargs: None,
+    )
+    monkeypatch.setitem(sys.modules, "loguru", SimpleNamespace(logger=logger))
+
+    class DummyCostTracker:
+        def summary(self):
+            return {"total_calls": 0, "total_cost": 0.0}
+
+    class DummyTrace:
+        def add_reasoning(self, *args, **kwargs):
+            return None
+
+        def add_decision(self, *args, **kwargs):
+            return None
+
+        def summary(self):
+            return {"spans": []}
+
+    monkeypatch.setitem(
+        sys.modules, "aria.costs", SimpleNamespace(CostTracker=DummyCostTracker)
+    )
+    monkeypatch.setitem(sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace))
+    monkeypatch.setitem(sys.modules, "aria.tools", SimpleNamespace(ToolRegistry=object))
+    from aria.agents import AriaAgent
+    from aria.approvals import ApprovalGate
+    from aria.memory import AgentMemory
+    from aria.routing import RouteDecision
+    from aria.store import InMemoryApprovalStore
+
+    instructions = "# Instructions\n\nRequire a human approval for writes."
+    _write_skill(workspace_tmp_root, "safe-writes", body=instructions)
+    session = SkillRegistry.discover(user_root=workspace_tmp_root).create_session()
+
+    class RecordingRouter:
+        def __init__(self) -> None:
+            self.contexts = []
+
+        def route(self, query, context, cost_tracker=None):
+            self.contexts.append(context)
+            return RouteDecision(
+                tool="task_creator",
+                arguments={"title": query, "description": query},
+                strategy="recording",
+            )
+
+    router = RecordingRouter()
+    store = InMemoryApprovalStore()
+
+    class GatedRegistry:
+        @staticmethod
+        def names():
+            return ["task_creator"]
+
+        @staticmethod
+        def requires_approval(name):
+            assert name == "task_creator"
+            return True
+
+    agent = AriaAgent(
+        GatedRegistry(),
+        ApprovalGate(enabled=True, mode="approval_gated", store=store),
+        router=router,
+        memory=AgentMemory(),
+        mode="approval_gated",
+        skill_session=session,
+    )
+
+    result = agent.run_structured(
+        "/safe-writes prepare release",
+        trace=DummyTrace(),
+        cost_tracker=DummyCostTracker(),
+    )
+
+    assert result.status == "pending_approval"
+    assert result.approval is not None
+    delivered = [
+        message["content"]
+        for message in router.contexts[0]
+        if message["role"] == "system" and message["content"] == instructions
+    ]
+    assert delivered == [instructions]
+    assert result.skill_context["loaded_instruction_bodies"][0]["instructions"] == (
+        instructions
+    )
+
+
+def test_llm_router_places_skill_context_in_request_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    logger = SimpleNamespace(warning=lambda *args, **kwargs: None)
+    monkeypatch.setitem(sys.modules, "loguru", SimpleNamespace(logger=logger))
+    from aria.routing import KeywordRouter, LLMRouter
+
+    class RecordingClient:
+        def __init__(self) -> None:
+            self.prompts = []
+
+        def generate(self, model, prompt, mocked_response=None):
+            self.prompts.append(prompt)
+            return {"response": '{"tool": null, "arguments": {}}'}
+
+    instructions = "EXACTLY ONCE SKILL INSTRUCTION"
+    client = RecordingClient()
+    router = LLMRouter(
+        llm_client=client,
+        keyword_fallback=KeywordRouter(tool_names=["task_creator"]),
+        simulate=False,
+    )
+
+    router.route(
+        "prepare release",
+        [{"role": "system", "content": instructions}],
+    )
+
+    assert len(client.prompts) == 1
+    assert client.prompts[0].count(instructions) == 1

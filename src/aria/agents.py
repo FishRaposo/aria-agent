@@ -15,6 +15,7 @@ returns a plain string (used by the original tests and the demo), while
 ``run_structured`` exposes the full result for the API.
 """
 
+import json
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -233,6 +234,8 @@ class AriaAgent:
             try:
                 result = client.generate(
                     "gpt-4o-mini",
+                    "Follow the supplied conversation context, including system "
+                    f"instructions. Context: {json.dumps(context, ensure_ascii=False)}. "
                     f"Respond to: {query}",
                     mocked_response="I understand your request. Let me help with that.",
                 )

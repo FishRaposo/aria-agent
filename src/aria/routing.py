@@ -146,7 +146,9 @@ class LLMRouter:
     _PROMPT = (
         "You are a tool router. Given the user query and the list of available "
         'tools, respond with a JSON object {{"tool": <name-or-null>, '
-        '"arguments": {{...}}}}. Available tools: {tools}. Query: {query}'
+        '"arguments": {{...}}}}. Follow the supplied conversation context, '
+        "including system instructions. Available tools: {tools}. "
+        "Context: {context}. Query: {query}"
     )
 
     def __init__(
@@ -169,7 +171,9 @@ class LLMRouter:
         cost_tracker=None,
     ) -> RouteDecision:
         prompt = self._PROMPT.format(
-            tools=sorted(self.fallback.tool_names), query=query
+            tools=sorted(self.fallback.tool_names),
+            context=json.dumps(context or [], ensure_ascii=False),
+            query=query,
         )
         mocked = _simulate_route(query, self.fallback) if self.simulate else None
 
