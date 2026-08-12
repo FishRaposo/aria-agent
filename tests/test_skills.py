@@ -514,3 +514,87 @@ def test_agent_no_tool_flow_delivers_skill_to_one_provider_request(
     assert sum(prompt.count(instructions) for prompt in client.prompts) == 1
     assert instructions in client.prompts[0]
     assert instructions not in client.prompts[1]
+
+
+def test_route_exception_delivers_skill_once_to_fallback_response(
+    workspace_tmp_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    logger = SimpleNamespace(
+        info=lambda *args, **kwargs: None,
+        warning=lambda *args, **kwargs: None,
+        error=lambda *args, **kwargs: None,
+    )
+    monkeypatch.setitem(sys.modules, "loguru", SimpleNamespace(logger=logger))
+
+    class DummyCostTracker:
+        def record_call(self, *args, **kwargs):
+            return 0.0
+
+        def summary(self):
+            return {"total_calls": 1, "total_cost": 0.0}
+
+    class DummyTrace:
+        def add_reasoning(self, *args, **kwargs):
+            return None
+
+        def add_decision(self, *args, **kwargs):
+            return None
+
+        def summary(self):
+            return {"spans": []}
+
+    monkeypatch.setitem(
+        sys.modules, "aria.costs", SimpleNamespace(CostTracker=DummyCostTracker)
+    )
+    monkeypatch.setitem(sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace))
+    monkeypatch.setitem(sys.modules, "aria.tools", SimpleNamespace(ToolRegistry=object))
+    from aria.agents import AriaAgent
+    from aria.approvals import ApprovalGate
+    from aria.memory import AgentMemory
+    from aria.routing import KeywordRouter, LLMRouter
+
+    instructions = "ROUTE_FAILURE_FALLBACK_INSTRUCTION"
+    _write_skill(workspace_tmp_root, "route-fallback", body=instructions)
+    session = SkillRegistry.discover(user_root=workspace_tmp_root).create_session()
+
+    class RaisingThenRespondingClient:
+        def __init__(self) -> None:
+            self.prompts = []
+            self.attempts = 0
+
+        def generate(self, model, prompt, mocked_response=None):
+            self.attempts += 1
+            if self.attempts == 1:
+                raise RuntimeError("routing provider unavailable")
+            self.prompts.append(prompt)
+            return {"response": "fallback response", "telemetry": {}}
+
+    class EmptyRegistry:
+        @staticmethod
+        def names():
+            return []
+
+    client = RaisingThenRespondingClient()
+    agent = AriaAgent(
+        EmptyRegistry(),
+        ApprovalGate(enabled=True, mode="free_running"),
+        router=LLMRouter(
+            llm_client=client,
+            keyword_fallback=KeywordRouter(tool_names=[]),
+            simulate=False,
+        ),
+        memory=AgentMemory(),
+        skill_session=session,
+    )
+
+    result = agent.run_structured(
+        "/route-fallback explain the release",
+        trace=DummyTrace(),
+        cost_tracker=DummyCostTracker(),
+    )
+
+    assert result.status == "completed"
+    assert client.attempts == 2
+    assert len(client.prompts) == 1
+    assert sum(prompt.count(instructions) for prompt in client.prompts) == 1
+    assert instructions in client.prompts[0]

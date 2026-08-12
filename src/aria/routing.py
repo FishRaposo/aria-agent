@@ -182,10 +182,10 @@ class LLMRouter:
         context_consumed = False
         if self.llm_client is not None:
             try:
-                context_consumed = bool(context)
                 result = self.llm_client.generate(
                     self.model, prompt, mocked_response=mocked
                 )
+                context_consumed = bool(context)
                 raw_text = result.get("response") if isinstance(result, dict) else None
                 telemetry = (
                     result.get("telemetry", {}) if isinstance(result, dict) else {}

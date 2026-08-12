@@ -29,7 +29,8 @@ clone.
 - Exact-once provider delivery of activated instructions: the LLM routing
   request is the designated consumer when it runs; a subsequent no-tool
   response request receives only the base conversation. If no LLM routing
-  request consumed the enriched context, the response request receives it.
+  request successfully consumed the enriched context, including when routing
+  raises and falls back to keyword routing, the response request receives it.
   The existing approval/tool loop remains authoritative.
 - Offline operation with no API key, provider, CLI, database, or network
   dependency.
