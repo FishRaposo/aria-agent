@@ -1,4 +1,4 @@
-"""Database availability probe and store selection.
+"""ARIA database availability probe and store selection.
 
 On startup we probe the configured database with a short connect timeout; if it
 is reachable, agent runs, tasks, approvals, and memory persist to PostgreSQL and

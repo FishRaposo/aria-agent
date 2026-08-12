@@ -1,6 +1,6 @@
-# Implementation Plan - Hermes Agent Framework
+# Implementation Plan - ARIA Agent Framework
 
-This document details the step-by-step technical implementation plan and development milestones for **Hermes Agent Framework**.
+This document details the step-by-step technical implementation plan and development milestones for **ARIA Agent Framework**.
 
 ---
 
@@ -14,10 +14,10 @@ A lightweight agent framework providing tool-calling models, stateful memory sto
 The repository is structured as a standalone project conforming to operator workspace standards. The core module responsibilities are mapped below:
 
 ### 2.1 File Map & Responsibilities
-* **`src/hermes/agent.py`**: Core run-loop implementing step-by-step reasoning, tool invocations, and termination checks.
-* **`src/hermes/tools.py`**: Tool registration manager verifying parameters schema via Pydantic model configurations.
-* **`src/hermes/memory.py`**: Stateful conversation memory storage and vector-backed semantic retrieval database.
-* **`src/hermes/approvals.py`**: Human-in-the-loop permission gateway intercepting sensitive tools (e.g. database deletes, git pushes).
+* **`src/aria/agent.py`**: Core run-loop implementing step-by-step reasoning, tool invocations, and termination checks.
+* **`src/aria/tools.py`**: Tool registration manager verifying parameters schema via Pydantic model configurations.
+* **`src/aria/memory.py`**: Stateful conversation memory storage and vector-backed semantic retrieval database.
+* **`src/aria/approvals.py`**: Human-in-the-loop permission gateway intercepting sensitive tools (e.g. database deletes, git pushes).
 
 ### 2.2 Shared Core Dependencies
 This service imports standard layers from `shared-core` (sibling dependency library):

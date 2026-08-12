@@ -1,6 +1,6 @@
 # Architecture
 
-Hermes is a controlled agent framework. The design goal is a **small, auditable
+ARIA is a controlled agent framework. The design goal is a **small, auditable
 core** where every external effect (tool call, LLM call, persistence write) is
 explicit, validated, traced, and cost-accounted. This document describes the
 components, the data model, and the offline-first execution model.
@@ -10,7 +10,7 @@ components, the data model, and the offline-first execution model.
 | Module | Responsibility |
 |--------|----------------|
 | `main.py` | FastAPI gateway; wires stores + agent; exposes the REST surface |
-| `agents.py` | `HermesAgent` — the reason/route/approve/act loop; returns a `RunResult` |
+| `agents.py` | `AriaAgent` — the reason/route/approve/act loop; returns a `RunResult` |
 | `routing.py` | `KeywordRouter` (deterministic) + `LLMRouter` (sim/real) → `RouteDecision` |
 | `llm_client.py` | `AgentLLMClient` — offline-first LLM wrapper (mock short-circuit, real when keyed) |
 | `tools.py` | `ToolRegistry` with `Permission` levels; `build_default_registry()` |
@@ -27,7 +27,7 @@ components, the data model, and the offline-first execution model.
 
 ## The agent loop
 
-`HermesAgent.run_structured(query)` performs one pass:
+`AriaAgent.run_structured(query)` performs one pass:
 
 ```
 add query to memory
@@ -130,8 +130,8 @@ fails fast and the code paths are identical apart from the store implementation.
 importable with **no broker running** (the broker is only contacted when a worker
 starts or a task is dispatched). Tasks:
 
-- `hermes.run_agent` — run the agent on a query and persist the run.
-- `hermes.sweep_expired_approvals` — materialise approval timeouts.
+- `aria.run_agent` — run the agent on a query and persist the run.
+- `aria.sweep_expired_approvals` — materialise approval timeouts.
 
 Both have pure helper functions (`_run_agent`, `_sweep_expired_approvals`) so
 they're unit-testable without Celery.

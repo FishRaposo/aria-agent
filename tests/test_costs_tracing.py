@@ -3,8 +3,8 @@
 from shared_core.pricing import calculate_cost
 from shared_core.tracing import SpanType
 
-from hermes.costs import CostTracker
-from hermes.tracing import TraceLog
+from aria.costs import CostTracker
+from aria.tracing import TraceLog
 
 
 class TestCostTracker:

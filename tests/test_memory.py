@@ -1,6 +1,6 @@
 """Memory tests — in-memory and persistent (DB) backends."""
 
-from hermes.memory import AgentMemory, PersistentMemory
+from aria.memory import AgentMemory, PersistentMemory
 
 
 class TestAgentMemory:

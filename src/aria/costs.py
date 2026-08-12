@@ -1,4 +1,4 @@
-"""Per-run LLM cost tracking via shared_core.
+"""ARIA per-run LLM cost tracking via shared_core.
 
 Wraps ``shared_core.llmmetrics.LLMMetrics`` (which defaults cost to
 ``shared_core.pricing.calculate_cost``) so cost/token/latency aggregation matches

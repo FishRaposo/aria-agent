@@ -3,13 +3,13 @@
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from hermes.builtin_tools.calculator import calculator, safe_eval
-from hermes.builtin_tools.email_draft import EmailDraftInput, email_draft
-from hermes.builtin_tools.file_reader import file_reader, get_sandbox_root
-from hermes.builtin_tools.task_creator import make_task_creator, task_creator
-from hermes.builtin_tools.web_search import web_search
-from hermes.store import InMemoryTaskStore
-from hermes.tools import Permission, ToolRegistry
+from aria.builtin_tools.calculator import calculator, safe_eval
+from aria.builtin_tools.email_draft import EmailDraftInput, email_draft
+from aria.builtin_tools.file_reader import file_reader, get_sandbox_root
+from aria.builtin_tools.task_creator import make_task_creator, task_creator
+from aria.builtin_tools.web_search import web_search
+from aria.store import InMemoryTaskStore
+from aria.tools import Permission, ToolRegistry
 
 
 # --------------------------------------------------------------------------- #
@@ -83,7 +83,7 @@ class TestCalculator:
 class TestFileReader:
     @pytest.fixture
     def sandbox(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("HERMES_SANDBOX_DIR", str(tmp_path))
+        monkeypatch.setenv("ARIA_SANDBOX_DIR", str(tmp_path))
         (tmp_path / "ok.txt").write_text("hello sandbox", encoding="utf-8")
         return tmp_path
 
@@ -123,15 +123,15 @@ class TestFileReader:
 # --------------------------------------------------------------------------- #
 class TestWebSearch:
     def test_known_keyword(self, monkeypatch):
-        monkeypatch.delenv("HERMES_SEARCH_API_URL", raising=False)
+        monkeypatch.delenv("ARIA_SEARCH_API_URL", raising=False)
         assert "Python" in web_search("tell me about python")
 
     def test_unknown_keyword_default(self, monkeypatch):
-        monkeypatch.delenv("HERMES_SEARCH_API_URL", raising=False)
+        monkeypatch.delenv("ARIA_SEARCH_API_URL", raising=False)
         assert "No relevant results" in web_search("zxqw unknown topic")
 
     def test_deterministic(self, monkeypatch):
-        monkeypatch.delenv("HERMES_SEARCH_API_URL", raising=False)
+        monkeypatch.delenv("ARIA_SEARCH_API_URL", raising=False)
         assert web_search("rag systems") == web_search("rag systems")
 
 

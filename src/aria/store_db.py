@@ -1,4 +1,4 @@
-"""Database-backed stores for runs, tasks, and approvals.
+"""ARIA database-backed stores for runs, tasks, and approvals.
 
 Each store mirrors the in-memory interface in ``store.py`` exactly, returning
 plain dicts so callers never depend on ORM objects. The approval lifecycle

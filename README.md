@@ -1,4 +1,4 @@
-# Hermes Agent Framework
+# ARIA Agent Framework
 
 > A controlled AI agent framework: schema-validated tools with permission levels, LLM/keyword routing, a human-in-the-loop approval queue, persistent memory, cost tracking, and AgentTrace-compatible execution tracing.
 
@@ -9,7 +9,7 @@
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-d71f00)
 ![Tests](https://img.shields.io/badge/tests-152%20passing-success)
 
-Hermes runs **fully offline by default** — no database, no Redis, no API keys — using deterministic simulation. When you supply a database it persists state; when you supply OpenAI/Anthropic keys it routes with a real LLM. Nothing about the demo or the test suite requires the network.
+ARIA runs **fully offline by default** — no database, no Redis, no API keys — using deterministic simulation. When you supply a database it persists state; when you supply OpenAI/Anthropic keys it routes with a real LLM. Nothing about the demo or the test suite requires the network.
 
 ---
 
@@ -23,11 +23,11 @@ Most agent frameworks optimize for flexibility and chaining at the cost of *cont
 - **Bounded, persistent memory** — conversation context that survives restarts and never grows unbounded.
 - **Cost and trace observability** — every run emits an AgentTrace-compatible span tree and a token/cost summary.
 
-Hermes is a minimal, opinionated framework that prioritizes **safety boundaries and observability** over feature count.
+ARIA is a minimal, opinionated framework that prioritizes **safety boundaries and observability** over feature count.
 
 ## What It Demonstrates
 
-- **Reason / route / approve / act loop** — `HermesAgent.run_structured()` routes a query to a tool, checks its permission against the approval gate, validates arguments, executes, traces, and records cost — in one auditable pass.
+- **Reason / route / approve / act loop** — `AriaAgent.run_structured()` routes a query to a tool, checks its permission against the approval gate, validates arguments, executes, traces, and records cost — in one auditable pass.
 - **Dual routing** — a deterministic `KeywordRouter` and an `LLMRouter` that follows the offline-first / real-when-keyed pattern (a `mocked_response` short-circuit, else `shared_core.llm.LLMClientFactory`, with graceful fallback to keyword routing on no-key / ImportError / failure).
 - **Tool permission levels** — `safe` tools run directly; `requires_approval` tools (task creation, email drafting) are gated.
 - **Real approval queue** — pending → approved/rejected/expired lifecycle with a configurable timeout, in DB or in-memory, exposed over the API.
@@ -41,7 +41,7 @@ Hermes is a minimal, opinionated framework that prioritizes **safety boundaries 
 ```mermaid
 graph TD
     Client["Client (API / CLI / Worker)"] --> API["FastAPI Gateway<br/>main.py"]
-    API --> Agent["HermesAgent<br/>agents.py"]
+    API --> Agent["AriaAgent<br/>agents.py"]
 
     Agent --> Router["Router<br/>routing.py"]
     Router -->|"auto / llm"| LLM["AgentLLMClient<br/>llm_client.py"]
@@ -95,7 +95,7 @@ graph TD
 ## Local Setup
 
 ```bash
-cd hermes-agent-framework
+cd aria-agent-framework
 
 # (optional) copy env template — defaults already run offline
 cp .env.example .env
@@ -109,7 +109,7 @@ pip install -e ".[dev]"
 python examples/run_demo.py
 
 # run the API
-uvicorn hermes.main:app --reload --app-dir src
+uvicorn aria.main:app --reload --app-dir src
 ```
 
 To enable persistence: `make docker-up` (PostgreSQL + Redis), then `make migrate`. The service auto-detects the database on startup.
@@ -173,7 +173,7 @@ Everything a dashboard would need is exposed via this API (no frontend is includ
 - **Simulated routing by default** — without API keys the LLM router returns a deterministic decision derived from the keyword router. This is intentional for offline reproducibility; real routing activates when keys are set.
 - **Approval timeout is lazy** — pending approvals transition to `expired` when next read (or swept by the worker task), not via a background timer.
 - **No auth** — the API has no authentication; it's a showcase, not a deployment.
-- **Web search mock is small** — the offline knowledge base is a handful of canned entries; a real endpoint (`HERMES_SEARCH_API_URL`) replaces it.
+- **Web search mock is small** — the offline knowledge base is a handful of canned entries; a real endpoint (`ARIA_SEARCH_API_URL`) replaces it.
 
 ## Roadmap
 
@@ -189,7 +189,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the detailed breakdown and [docs/EXEC
 
 Part of a multi-project AI infrastructure portfolio built on [shared-core](../shared-core/):
 
-- **[llm-cost-latency-monitor](../llm-cost-latency-monitor/)** — the cost/trace primitives Hermes reuses
+- **[llm-cost-latency-monitor](../llm-cost-latency-monitor/)** — the cost/trace primitives ARIA reuses
 - **[github-issue-pr-agent](../github-issue-pr-agent/)** — a downstream consumer of agent runs
 
 ## License

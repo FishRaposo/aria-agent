@@ -1,6 +1,6 @@
 # Execution Plan
 
-What was built to take Hermes from a keyword-routing skeleton to a fully
+What was built to take ARIA from a keyword-routing skeleton to a fully
 implemented, tested, documented agent framework — and how each item was verified.
 
 ## Starting point
@@ -15,10 +15,10 @@ existed but were trivial.
 ### Tools (4+ real, hardened)
 - **calculator** — replaced `eval()` with an `ast`-based whitelist evaluator
   (`safe_eval`); rejects names/calls/attributes; caps exponents.
-- **file_reader** — sandboxed to `HERMES_SANDBOX_DIR` with `Path.is_relative_to`
+- **file_reader** — sandboxed to `ARIA_SANDBOX_DIR` with `Path.is_relative_to`
   containment; rejects `..` traversal and absolute paths.
 - **web_search** — deterministic mock offline; real HTTP via
-  `shared_core.clients.BaseHTTPClient` when `HERMES_SEARCH_API_URL` is set.
+  `shared_core.clients.BaseHTTPClient` when `ARIA_SEARCH_API_URL` is set.
 - **task_creator** — persists a task via the active store (`make_task_creator`).
 - **email_draft** — returns a structured draft, `sent: false`; never sends.
 - **ToolRegistry** — added `Permission` levels and `build_default_registry`.
@@ -54,7 +54,7 @@ existed but were trivial.
   `GET /tools/{name}`, `GET /health`.
 
 ### Worker
-- `worker.py` — real `hermes.run_agent` and `hermes.sweep_expired_approvals`
+- `worker.py` — real `aria.run_agent` and `aria.sweep_expired_approvals`
   tasks; importable with no broker.
 
 ### Examples
@@ -78,7 +78,7 @@ existed but were trivial.
 
 | Step | Result |
 |------|--------|
-| `ruff format` + `ruff check src/hermes tests examples` | Clean |
+| `ruff format` + `ruff check src/aria tests examples` | Clean |
 | `pytest -q` | 152 passed |
 | `python examples/run_demo.py` | Exit 0 (assertions pass) |
 | `research_agent` / `task_agent` / `approval_gated_agent` | Exit 0 |

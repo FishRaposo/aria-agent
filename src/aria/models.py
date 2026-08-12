@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for persistent agent state.
+"""SQLAlchemy ORM models for persistent ARIA agent state.
 
 All models extend the shared ``Base`` plus ``UUIDMixin``/``TimestampMixin`` from
 ``shared_core.database`` so ids and timestamps are consistent across the

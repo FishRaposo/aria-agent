@@ -1,4 +1,4 @@
-"""Execution tracing built on shared_core canonical spans.
+"""ARIA execution tracing built on shared_core canonical spans.
 
 ``TraceLog`` records a step-by-step trace of an agent run and produces, in
 addition to the human-readable entry list, a list of ``shared_core.tracing.Span``

@@ -1,4 +1,4 @@
-"""Agent LLM client — offline-first, real-when-keyed.
+"""ARIA agent LLM client — offline-first, real-when-keyed.
 
 Mirrors ``llm-cost-latency-monitor/src/llm_monitor/sdk.py``: a ``mocked_response``
 short-circuits to a deterministic simulated response (no network, no keys),

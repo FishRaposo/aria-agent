@@ -54,7 +54,7 @@ correct arithmetic and rejection of injection payloads.
 vector.
 
 **Decision.** `file_reader` resolves every path against an allowlisted sandbox
-root (`HERMES_SANDBOX_DIR`, default `./sandbox`) and verifies the resolved path
+root (`ARIA_SANDBOX_DIR`, default `./sandbox`) and verifies the resolved path
 is contained within it via `Path.is_relative_to`. Absolute paths and `..`
 traversal are rejected; only UTF-8 text up to a byte cap is returned.
 
@@ -104,7 +104,7 @@ degrades to deterministic behaviour rather than crashing or calling a bogus tool
 
 ## ADR 8 — Backward-compatible agent surface
 
-**Context.** The original tests and demo call `HermesAgent(registry, gate).run(query)`
+**Context.** The original tests and demo call `AriaAgent(registry, gate).run(query)`
 and expect a string.
 
 **Decision.** Keep `run()` returning a string; add `run_structured()` returning a

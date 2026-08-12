@@ -2,9 +2,9 @@
 
 import pytest
 
-from hermes.costs import CostTracker
-from hermes.llm_client import AgentLLMClient
-from hermes.routing import KeywordRouter, LLMRouter, RouteDecision, build_router
+from aria.costs import CostTracker
+from aria.llm_client import AgentLLMClient
+from aria.routing import KeywordRouter, LLMRouter, RouteDecision, build_router
 
 
 class TestKeywordRouter:

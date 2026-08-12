@@ -1,4 +1,4 @@
-"""Tool registry with Pydantic-validated schemas and permission levels.
+"""ARIA tool registry with Pydantic-validated schemas and permission levels.
 
 Each registered tool carries a permission level: ``SAFE`` tools execute directly,
 ``REQUIRES_APPROVAL`` tools are routed through the approval queue before execution

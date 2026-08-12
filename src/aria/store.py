@@ -1,4 +1,4 @@
-"""In-memory stores for runs, tasks, and approvals.
+"""ARIA in-memory stores for runs, tasks, and approvals.
 
 These are the offline-first defaults used when no database is reachable. Each
 class mirrors the interface of its DB-backed counterpart in ``store_db.py`` so

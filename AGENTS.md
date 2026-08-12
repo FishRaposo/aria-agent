@@ -1,8 +1,8 @@
-# AGENTS.md — hermes-agent-framework
+# AGENTS.md — aria-agent-framework
 
 ## What This Is
 
-Hermes is a controlled AI agent framework: a schema-validated tool registry with
+ARIA is a controlled AI agent framework: a schema-validated tool registry with
 permission levels, dual routing (deterministic keyword + LLM with sim/real),
 a real human-in-the-loop approval queue, persistent memory, cost tracking, and
 AgentTrace-compatible execution tracing. It is **offline-first**: the demo and
@@ -14,20 +14,20 @@ when configured.
 
 ```bash
 make install     # pip install -e "../shared-core[dev,docparse]" numpy && pip install -e ".[dev]"
-make dev         # uvicorn hermes.main:app --reload --app-dir src (:8000)
+make dev         # uvicorn aria.main:app --reload --app-dir src (:8000)
 make test        # pytest -q  (152 tests, all offline)
-make lint        # ruff check src/hermes tests examples
-make format      # ruff format src/hermes tests examples
+make lint        # ruff check src/aria tests examples
+make format      # ruff format src/aria tests examples
 make demo        # python examples/run_demo.py
 make migrate     # alembic upgrade head (optional — DB not required)
-make worker      # celery -A hermes.worker worker
+make worker      # celery -A aria.worker worker
 make docker-up   # Postgres (pgvector:pg16) + Redis 7
 ```
 
 ## Entry Point
 
-`src/hermes/main.py` — FastAPI app. On import it runs the DB-availability probe
-(`hermes.db.check_db`) and selects persistent or in-memory stores, then wires the
+`src/aria/main.py` — FastAPI app. On import it runs the DB-availability probe
+(`aria.db.check_db`) and selects persistent or in-memory stores, then wires the
 registry, router, approval gate, and per-request agents.
 
 ## Source Modules
@@ -35,7 +35,7 @@ registry, router, approval gate, and per-request agents.
 | File | Purpose |
 |------|---------|
 | `main.py` | FastAPI app + all endpoints; store/agent wiring |
-| `agents.py` | `HermesAgent` — reason/route/approve/act loop; `RunResult` |
+| `agents.py` | `AriaAgent` — reason/route/approve/act loop; `RunResult` |
 | `routing.py` | `KeywordRouter`, `LLMRouter`, `RouteDecision`, `build_router` |
 | `llm_client.py` | `AgentLLMClient` — offline-first LLM wrapper |
 | `tools.py` | `ToolRegistry`, `Permission`, `build_default_registry` |
@@ -47,7 +47,7 @@ registry, router, approval gate, and per-request agents.
 | `models.py` | SQLAlchemy models (agent_runs, memory_messages, approvals, created_tasks) |
 | `costs.py` | `CostTracker` over `shared_core.llmmetrics` |
 | `tracing.py` | `TraceLog` → `shared_core.tracing.Span` trees |
-| `worker.py` | Celery tasks: `hermes.run_agent`, `hermes.sweep_expired_approvals` |
+| `worker.py` | Celery tasks: `aria.run_agent`, `aria.sweep_expired_approvals` |
 | `config.py` | `AppConfig(BaseAppConfig)` — agent mode/routing, probe timeout |
 
 ## API Endpoints

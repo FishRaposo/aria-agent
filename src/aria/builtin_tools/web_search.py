@@ -1,6 +1,6 @@
 """Web search tool — real when configured, deterministic mock offline.
 
-Offline-first: with no ``HERMES_SEARCH_API_URL`` configured the tool returns a
+Offline-first: with no ``ARIA_SEARCH_API_URL`` configured the tool returns a
 deterministic simulated result (no network). When a search endpoint is
 configured it performs a real HTTP GET via ``shared_core.clients.BaseHTTPClient``
 and gracefully falls back to the mock on any failure. This is a ``safe``
@@ -77,7 +77,7 @@ async def _real_search(query: str, api_url: str) -> str:
 
 def web_search(query: str) -> str:
     """Search the web (real when configured, deterministic mock otherwise)."""
-    api_url = os.environ.get("HERMES_SEARCH_API_URL")
+    api_url = os.environ.get("ARIA_SEARCH_API_URL")
     if not api_url:
         return _mock_search(query)
     try:

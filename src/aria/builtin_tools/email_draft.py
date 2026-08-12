@@ -1,4 +1,4 @@
-"""Email draft tool — returns a structured draft, never sends.
+"""ARIA email draft tool — returns a structured draft, never sends.
 
 Produces a JSON-serialisable draft object (and a human-readable rendering) but
 performs no network I/O and dispatches no mail. This is a ``requires_approval``

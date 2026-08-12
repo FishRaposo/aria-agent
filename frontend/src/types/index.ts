@@ -1,5 +1,5 @@
-// Type definitions mirroring the Hermes FastAPI response shapes.
-// Source of truth: src/hermes/main.py + tracing.py + costs.py + store.py.
+// Type definitions mirroring the ARIA FastAPI response shapes.
+// Source of truth: src/aria/main.py + tracing.py + costs.py + store.py.
 
 export type RunStatus =
   | "completed"

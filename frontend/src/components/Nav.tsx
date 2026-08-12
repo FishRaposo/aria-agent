@@ -30,7 +30,7 @@ export default function Nav() {
             H
           </span>
           <span className="text-base font-semibold tracking-tight text-ink-50">
-            Hermes
+            ARIA
             <span className="ml-1 hidden text-ink-500 sm:inline">
               Agent Console
             </span>

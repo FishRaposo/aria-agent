@@ -1,4 +1,4 @@
-// Typed API client for the Hermes agent framework.
+// Typed API client for the ARIA agent framework.
 //
 // Live-first with graceful demo-mode fallback:
 //  - Each call tries the real backend at NEXT_PUBLIC_API_URL.
@@ -88,7 +88,7 @@ async function request<T>(
 
 const NETWORK_REASON = "backend unreachable — showing bundled demo data";
 
-class HermesApi {
+class AriaApi {
   async listRuns(limit = 50): Promise<ApiResult<AgentRun[]>> {
     const res = await request<RunListResponse>(`/agent/runs?limit=${limit}`);
     if (res.ok) return live(res.data.runs);
@@ -211,7 +211,7 @@ class HermesApi {
     return demo(
       {
         status: "offline",
-        service: "hermes-agent-framework",
+        service: "aria-agent-framework",
         dependencies: { database: "offline", redis: "offline" },
       },
       NETWORK_REASON
@@ -219,4 +219,4 @@ class HermesApi {
   }
 }
 
-export const api = new HermesApi();
+export const api = new AriaApi();

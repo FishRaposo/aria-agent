@@ -1,6 +1,6 @@
-"""The Hermes agent — reason / route / approve / act loop.
+"""The ARIA agent — reason / route / approve / act loop.
 
-``HermesAgent.run()`` orchestrates a single pass:
+``AriaAgent.run()`` orchestrates a single pass:
 
 1. Persist the user query to memory.
 2. Route the query to a tool (LLM router with keyword fallback, or pure keyword).
@@ -10,7 +10,7 @@
    trace span and recording cost/latency.
 5. Store the result in memory and return a structured ``RunResult``.
 
-It keeps a backward-compatible surface: ``HermesAgent(registry, gate).run(query)``
+It keeps the simple surface: ``AriaAgent(registry, gate).run(query)``
 returns a plain string (used by the original tests and the demo), while
 ``run_structured`` exposes the full result for the API.
 """
@@ -58,7 +58,7 @@ class RunResult:
         }
 
 
-class HermesAgent:
+class AriaAgent:
     """Runs the central reason-and-act loop with tool execution constraints."""
 
     def __init__(

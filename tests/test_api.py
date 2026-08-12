@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(scope="module")
 def client():
-    import hermes.config as config_mod
+    import aria.config as config_mod
 
     # Make the startup DB probe fail fast -> in-memory stores.
     original = config_mod.AppConfig
@@ -25,8 +25,8 @@ def client():
 
     config_mod.AppConfig = FastProbeConfig
     try:
-        import hermes.db as db_mod
-        import hermes.main as main_mod
+        import aria.db as db_mod
+        import aria.main as main_mod
 
         importlib.reload(db_mod)
         importlib.reload(main_mod)
@@ -43,7 +43,7 @@ def test_health(client):
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["service"] == "hermes-agent-framework"
+    assert data["service"] == "aria-agent-framework"
     assert "dependencies" in data
 
 
@@ -204,8 +204,8 @@ def test_approve_expired_between_check_and_decide_does_not_execute(client, monke
     """If the approval expires between the PENDING check and decide(), the
     endpoint must NOT execute the gated tool — only return the decided record.
     """
-    import hermes.main as main_mod
-    from hermes.store import ApprovalStatus
+    import aria.main as main_mod
+    from aria.store import ApprovalStatus
 
     pending = client.post(
         "/agent/chat",
@@ -230,7 +230,7 @@ def test_approve_expired_between_check_and_decide_does_not_execute(client, monke
     def fail_execute(*args, **kwargs):  # pragma: no cover - asserts non-invocation
         raise AssertionError("execute_approved called for a non-approved action")
 
-    monkeypatch.setattr(main_mod.HermesAgent, "execute_approved", fail_execute)
+    monkeypatch.setattr(main_mod.AriaAgent, "execute_approved", fail_execute)
 
     resp = client.post(f"/approvals/{approval_id}/approve")
     assert resp.status_code == 200

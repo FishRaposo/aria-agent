@@ -2,9 +2,9 @@
 
 import time
 
-from hermes import db as db_module
-from hermes.store import InMemoryRunStore, InMemoryTaskStore
-from hermes.store_db import DatabaseRunStore, DatabaseTaskStore
+from aria import db as db_module
+from aria.store import InMemoryRunStore, InMemoryTaskStore
+from aria.store_db import DatabaseRunStore, DatabaseTaskStore
 
 
 class TestRunStore:

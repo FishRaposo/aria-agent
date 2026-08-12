@@ -1,6 +1,6 @@
-# Hermes — Agent Control Console (frontend)
+# ARIA — Agent Control Console (frontend)
 
-A polished Next.js 14 dashboard for the **Hermes agent framework**. It is the
+A polished Next.js 14 dashboard for the **ARIA agent framework**. It is the
 operator console for an autonomous agent: browse runs, inspect span-level
 traces, chat with the agent live, review the tool registry, govern risky tool
 calls through an approval queue, and inspect conversation memory — with cost and
@@ -24,7 +24,7 @@ latency charts throughout.
 
 ## Backend endpoints consumed
 
-The typed client in [`src/lib/api.ts`](src/lib/api.ts) talks to the Hermes
+The typed client in [`src/lib/api.ts`](src/lib/api.ts) talks to the ARIA
 FastAPI service:
 
 - `GET  /agent/runs` — run list
@@ -47,18 +47,18 @@ npm run dev          # http://localhost:3000
 ```
 
 Point it at a backend with `NEXT_PUBLIC_API_URL` (default
-`http://localhost:8000`). To run the Hermes API locally:
+`http://localhost:8000`). To run the ARIA API locally:
 
 ```bash
 # from the repo root
-uvicorn hermes.main:app --app-dir src --host 0.0.0.0 --port 8000
+uvicorn aria.main:app --app-dir src --host 0.0.0.0 --port 8000
 ```
 
 ### Environment
 
 | Variable              | Default                 | Purpose                          |
 | --------------------- | ----------------------- | -------------------------------- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the Hermes FastAPI backend. |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the ARIA FastAPI backend. |
 
 Copy `.env.example` to `.env.local` to override.
 

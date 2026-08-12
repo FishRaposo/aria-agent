@@ -1,4 +1,4 @@
-"""Approval gate — bridges risky tool calls to the approval queue.
+"""ARIA approval gate — bridges risky tool calls to the approval queue.
 
 Two modes:
 

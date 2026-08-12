@@ -1,5 +1,5 @@
 // Bundled mock data so every view is fully explorable with NO backend running.
-// Shapes mirror the Hermes FastAPI responses exactly (see src/types/index.ts).
+// Shapes mirror the ARIA FastAPI responses exactly (see src/types/index.ts).
 
 import type {
   AgentRun,
@@ -154,7 +154,7 @@ const trace3: TraceSummary = buildTrace(
     {
       step: 1,
       type: "reasoning",
-      content: "Processing query: draft an email to ops@hermes.dev about the incident",
+      content: "Processing query: draft an email to ops@aria.dev about the incident",
     },
     { step: 2, type: "decision", name: "route", content: "tool=email_draft via keyword" },
     {
@@ -275,7 +275,7 @@ export const MOCK_RUNS: AgentRun[] = [
   },
   {
     id: "c9d0e1f2",
-    query: "Draft an email to ops@hermes.dev about the incident",
+    query: "Draft an email to ops@aria.dev about the incident",
     response:
       "Action 'email_draft' requires approval. Pending approval id: apr-77ce42aa10bd.",
     mode: "approval_gated",
@@ -474,7 +474,7 @@ export const MOCK_APPROVALS: Approval[] = [
     run_id: "c9d0e1f2",
     action: "email_draft",
     parameters: {
-      recipient: "ops@hermes.dev",
+      recipient: "ops@aria.dev",
       subject: "Incident follow-up",
       body: "Summarising the Q3 incident and next steps for the on-call rotation.",
     },
@@ -514,7 +514,7 @@ export const MOCK_APPROVALS: Approval[] = [
     run_id: null,
     action: "email_draft",
     parameters: {
-      recipient: "all-staff@hermes.dev",
+      recipient: "all-staff@aria.dev",
       subject: "Company-wide outage",
       body: "Drafted broadcast — held for review.",
     },
@@ -536,7 +536,7 @@ export const MOCK_MEMORY: Record<string, { role: string; content: string }[]> = 
       content:
         "RAG (Retrieval-Augmented Generation) combines information retrieval with text generation.",
     },
-    { role: "user", content: "Draft an email to ops@hermes.dev about the incident" },
+    { role: "user", content: "Draft an email to ops@aria.dev about the incident" },
     {
       role: "system",
       content: "Action 'email_draft' requires approval. Pending approval id: apr-77ce42aa10bd.",

@@ -8,8 +8,8 @@ from shared_core.database import Base
 from sqlalchemy import create_engine
 
 from alembic import context
-from hermes.config import AppConfig
-from hermes.models import (  # noqa: F401
+from aria.config import AppConfig
+from aria.models import (  # noqa: F401
     AgentRun,
     ApprovalRecord,
     CreatedTask,

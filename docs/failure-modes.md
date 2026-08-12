@@ -1,6 +1,6 @@
 # Failure Modes & Mitigations
 
-How Hermes behaves when dependencies misbehave, and how failures are contained.
+How ARIA behaves when dependencies misbehave, and how failures are contained.
 The framework is built to **degrade, not crash**: every external effect has a
 fallback and every tool returns a string rather than propagating an exception to
 the caller.

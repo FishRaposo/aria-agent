@@ -1,5 +1,5 @@
 [project]
-name = "hermes-agent-framework"
+name = "aria-agent-framework"
 version = "1.0.0"
 description = "Controlled AI agent framework — tool registry with permission levels, LLM/keyword routing, human approval queue, persistent memory, cost tracking, and AgentTrace-compatible execution tracing"
 requires-python = ">=3.10"

@@ -131,7 +131,7 @@ export default function ChatPanel() {
               , or{" "}
               <button
                 className="text-brand-300 underline-offset-2 hover:underline"
-                onClick={() => setInput("Draft an email to ops@hermes.dev")}
+                onClick={() => setInput("Draft an email to ops@aria.dev")}
               >
                 an email draft
               </button>{" "}

@@ -4,7 +4,7 @@ from shared_core.config import BaseAppConfig
 class AppConfig(BaseAppConfig):
     """Project-specific configuration extending the shared core settings."""
 
-    APP_NAME: str = "hermes-agent-framework"
+    APP_NAME: str = "aria-agent-framework"
 
     # Agent behaviour
     AGENT_MAX_STEPS: int = 5

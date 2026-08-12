@@ -1,4 +1,4 @@
-"""Hermes — a controlled AI agent framework.
+"""ARIA — a controlled AI agent framework.
 
 Tool registry with permission levels, LLM/keyword routing, a human-in-the-loop
 approval queue, persistent memory, cost tracking, and AgentTrace-compatible

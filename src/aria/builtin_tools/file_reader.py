@@ -7,7 +7,7 @@ sandbox, and symlink escapes are all rejected. This is a ``safe`` permission-
 level tool because it can only ever read inside the sandbox.
 
 The sandbox root defaults to ``<project>/sandbox`` and can be overridden via the
-``HERMES_SANDBOX_DIR`` environment variable.
+``ARIA_SANDBOX_DIR`` environment variable.
 """
 
 import os
@@ -20,11 +20,11 @@ _MAX_BYTES = 4000
 
 def get_sandbox_root() -> Path:
     """Return the resolved sandbox root, creating it if necessary."""
-    env = os.environ.get("HERMES_SANDBOX_DIR")
+    env = os.environ.get("ARIA_SANDBOX_DIR")
     if env:
         root = Path(env)
     else:
-        # <repo>/src/hermes/builtin_tools/file_reader.py -> <repo>/sandbox
+        # <repo>/src/aria/builtin_tools/file_reader.py -> <repo>/sandbox
         root = Path(__file__).resolve().parents[3] / "sandbox"
     root.mkdir(parents=True, exist_ok=True)
     return root.resolve()

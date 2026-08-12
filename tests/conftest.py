@@ -9,16 +9,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from shared_core.testing import MockDatabase, MockRedisClient  # noqa: E402
 
-from hermes.approvals import ApprovalGate  # noqa: E402
-from hermes.llm_client import AgentLLMClient  # noqa: E402
-from hermes.memory import AgentMemory  # noqa: E402
-from hermes.routing import build_router  # noqa: E402
-from hermes.store import (  # noqa: E402
+from aria.approvals import ApprovalGate  # noqa: E402
+from aria.llm_client import AgentLLMClient  # noqa: E402
+from aria.memory import AgentMemory  # noqa: E402
+from aria.routing import build_router  # noqa: E402
+from aria.store import (  # noqa: E402
     InMemoryApprovalStore,
     InMemoryRunStore,
     InMemoryTaskStore,
 )
-from hermes.tools import build_default_registry  # noqa: E402
+from aria.tools import build_default_registry  # noqa: E402
 
 
 @pytest.fixture
@@ -53,9 +53,9 @@ def registry(task_store):
 
 @pytest.fixture
 def keyword_agent(registry):
-    from hermes.agents import HermesAgent
+    from aria.agents import AriaAgent
 
-    return HermesAgent(
+    return AriaAgent(
         registry,
         ApprovalGate(enabled=True, mode="free_running"),
         router=build_router("keyword"),
@@ -66,9 +66,9 @@ def keyword_agent(registry):
 
 @pytest.fixture
 def sim_llm_agent(registry):
-    from hermes.agents import HermesAgent
+    from aria.agents import AriaAgent
 
-    return HermesAgent(
+    return AriaAgent(
         registry,
         ApprovalGate(enabled=True, mode="free_running"),
         router=build_router("auto", llm_client=AgentLLMClient()),

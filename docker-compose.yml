@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  postgres:
+  aria-postgres:
     image: pgvector/pgvector:pg16
-    container_name: hermes_postgres
+    container_name: aria_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -11,31 +11,31 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - aria_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  redis:
+  aria-redis:
     image: redis:7-alpine
-    container_name: hermes_redis
+    container_name: aria_redis
     ports:
       - "6379:6379"
     volumes:
-      - redisdata:/data
+      - aria_redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  web:
+  aria-web:
     build:
       context: ./frontend
       target: dev
-    container_name: hermes_web
+    container_name: aria_web
     ports:
       - "3000:3000"
     environment:
@@ -48,5 +48,5 @@ services:
       - /app/.next
 
 volumes:
-  pgdata:
-  redisdata:
+  aria_pgdata:
+  aria_redisdata:

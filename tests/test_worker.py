@@ -2,15 +2,15 @@
 
 from unittest.mock import patch
 
-from hermes import worker
-from hermes.approvals import ApprovalGate
-from hermes.store import InMemoryApprovalStore
+from aria import worker
+from aria.approvals import ApprovalGate
+from aria.store import InMemoryApprovalStore
 
 
 def test_celery_app_importable_without_broker():
     assert worker.celery_app is not None
-    assert "hermes.run_agent" in worker.celery_app.tasks
-    assert "hermes.sweep_expired_approvals" in worker.celery_app.tasks
+    assert "aria.run_agent" in worker.celery_app.tasks
+    assert "aria.sweep_expired_approvals" in worker.celery_app.tasks
 
 
 def test_run_agent_helper_offline():

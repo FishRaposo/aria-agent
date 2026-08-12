@@ -1,4 +1,4 @@
-"""Safe arithmetic calculator tool.
+"""ARIA safe arithmetic calculator tool.
 
 Evaluates a mathematical expression using a restricted AST walk rather than
 ``eval()``. Only literals and a small whitelist of binary/unary operators are

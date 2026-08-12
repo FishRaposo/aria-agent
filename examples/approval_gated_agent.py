@@ -11,19 +11,19 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
-from hermes.agents import HermesAgent  # noqa: E402
-from hermes.approvals import ApprovalGate  # noqa: E402
-from hermes.memory import AgentMemory  # noqa: E402
-from hermes.routing import build_router  # noqa: E402
-from hermes.store import InMemoryApprovalStore, InMemoryTaskStore  # noqa: E402
-from hermes.tools import build_default_registry  # noqa: E402
+from aria.agents import AriaAgent  # noqa: E402
+from aria.approvals import ApprovalGate  # noqa: E402
+from aria.memory import AgentMemory  # noqa: E402
+from aria.routing import build_router  # noqa: E402
+from aria.store import InMemoryApprovalStore, InMemoryTaskStore  # noqa: E402
+from aria.tools import build_default_registry  # noqa: E402
 
 
 def build_approval_gated_agent():
     task_store = InMemoryTaskStore()
     approval_store = InMemoryApprovalStore()
     registry = build_default_registry(task_store=task_store)
-    agent = HermesAgent(
+    agent = AriaAgent(
         registry,
         ApprovalGate(enabled=True, mode="approval_gated", store=approval_store),
         router=build_router("keyword"),

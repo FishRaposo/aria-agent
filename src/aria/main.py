@@ -1,4 +1,4 @@
-"""FastAPI gateway for the Hermes agent framework.
+"""FastAPI gateway for the ARIA agent framework.
 
 Wires the agent loop, tool registry, approval queue, persistent stores, cost
 tracking, and tracing behind a small REST surface. Everything runs offline by
@@ -29,7 +29,7 @@ from shared_core.health import check_health
 from shared_core.logging import setup_logging
 
 from . import db as db_module
-from .agents import HermesAgent
+from .agents import AriaAgent
 from .approvals import ApprovalGate
 from .config import AppConfig
 from .costs import CostTracker
@@ -65,10 +65,10 @@ router = build_router(config.AGENT_ROUTING, llm_client=llm_client)
 gate = ApprovalGate(enabled=True, mode=config.AGENT_MODE, store=approval_store)
 
 
-def _build_agent(mode: str, session_id: str) -> HermesAgent:
+def _build_agent(mode: str, session_id: str) -> AriaAgent:
     """Construct a per-request agent bound to the active stores."""
     request_gate = ApprovalGate(enabled=True, mode=mode, store=approval_store)
-    return HermesAgent(
+    return AriaAgent(
         registry,
         request_gate,
         max_steps=config.AGENT_MAX_STEPS,

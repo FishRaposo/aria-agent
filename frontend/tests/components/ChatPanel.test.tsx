@@ -40,7 +40,7 @@ describe("ChatPanel", () => {
     });
     const box = screen.getByLabelText("Message the agent");
     fireEvent.change(box, {
-      target: { value: "Draft an email to ops@hermes.dev" },
+      target: { value: "Draft an email to ops@aria.dev" },
     });
     fireEvent.click(screen.getByText("Send"));
 

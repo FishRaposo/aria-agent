@@ -8,9 +8,9 @@ import time
 
 import pytest
 
-from hermes.approvals import ApprovalGate
-from hermes.store import ApprovalStatus, InMemoryApprovalStore
-from hermes.store_db import DatabaseApprovalStore
+from aria.approvals import ApprovalGate
+from aria.store import ApprovalStatus, InMemoryApprovalStore
+from aria.store_db import DatabaseApprovalStore
 
 
 @pytest.fixture(params=["memory", "db"])

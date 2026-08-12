@@ -1,4 +1,4 @@
-"""Tool routing — LLM-based (sim/real) with a deterministic keyword fallback.
+"""ARIA tool routing — LLM-based (sim/real) with a deterministic keyword fallback.
 
 Two strategies select which tool (if any) an agent should call for a query:
 

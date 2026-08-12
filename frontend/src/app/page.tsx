@@ -57,7 +57,7 @@ export default function HomePage() {
           Offline-first agent control plane
         </span>
         <h1 className="mx-auto mb-4 max-w-3xl text-4xl font-bold tracking-tight text-ink-50 sm:text-5xl">
-          The Hermes Agent Control Console
+          The ARIA Agent Control Console
         </h1>
         <p className="mx-auto mb-8 max-w-2xl text-lg text-ink-400">
           Operate an autonomous agent with full observability: trace every run,

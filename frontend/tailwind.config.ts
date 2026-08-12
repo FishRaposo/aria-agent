@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Hermes control-console accent — violet/indigo "winged messenger".
+        // ARIA control-console accent — violet/indigo signal palette.
         brand: {
           50: "#eef2ff",
           100: "#e0e7ff",

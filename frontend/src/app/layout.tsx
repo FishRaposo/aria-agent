@@ -7,7 +7,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Hermes — Agent Control Console",
+  title: "ARIA — Agent Control Console",
   description:
     "Operate, trace, and govern an autonomous agent: runs, traces, tool registry, approval queue, and memory.",
 };

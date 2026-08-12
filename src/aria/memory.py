@@ -1,4 +1,4 @@
-"""Conversation memory — persistent (DB) with in-memory fallback.
+"""ARIA conversation memory — persistent (DB) with in-memory fallback.
 
 ``AgentMemory`` keeps the original simple in-memory list API (used directly in
 unit tests and the demo). ``PersistentMemory`` implements the same surface but

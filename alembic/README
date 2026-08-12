@@ -1,13 +1,13 @@
-Alembic migrations for hermes-agent-framework.
+Alembic migrations for aria-agent-framework.
 
 The database is optional: the service falls back to in-memory stores when no
-database is reachable (see src/hermes/db.py). Run migrations only when you want
+database is reachable (see src/aria/db.py). Run migrations only when you want
 persistent agent runs, tasks, approvals, and memory.
 
   # apply all migrations
   alembic upgrade head
 
-  # autogenerate a new migration after changing src/hermes/models.py
+  # autogenerate a new migration after changing src/aria/models.py
   alembic revision --autogenerate -m "describe change"
 
 The database URL is read from AppConfig.DATABASE_URL (env / .env) in env.py.

@@ -25,7 +25,7 @@ celery_app = create_celery_app(
 def _build_agent(mode: str, session_id: str):
     """Construct an agent bound to the active stores (DB or in-memory)."""
     from . import db as db_module
-    from .agents import HermesAgent
+    from .agents import AriaAgent
     from .approvals import ApprovalGate
     from .llm_client import AgentLLMClient
     from .memory import get_memory
@@ -40,7 +40,7 @@ def _build_agent(mode: str, session_id: str):
     registry = build_default_registry(task_store=task_store)
     router = build_router(config.AGENT_ROUTING, llm_client=AgentLLMClient())
     gate = ApprovalGate(enabled=True, mode=mode, store=approval_store)
-    agent = HermesAgent(
+    agent = AriaAgent(
         registry,
         gate,
         max_steps=config.AGENT_MAX_STEPS,
@@ -71,7 +71,7 @@ def _run_agent(query: str, session_id: str, mode: str) -> Dict[str, Any]:
     return result.to_dict()
 
 
-@celery_app.task(name="hermes.run_agent")
+@celery_app.task(name="aria.run_agent")
 def run_agent_task(
     query: str, session_id: str = "default", mode: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -86,7 +86,7 @@ def _sweep_expired_approvals(approval_store) -> Dict[str, Any]:
     return {"total": len(approvals), "expired": len(expired)}
 
 
-@celery_app.task(name="hermes.sweep_expired_approvals")
+@celery_app.task(name="aria.sweep_expired_approvals")
 def sweep_expired_approvals_task() -> Dict[str, Any]:
     """Async task: materialise approval timeouts (pending -> expired)."""
     _, _, approval_store = _build_agent(config.AGENT_MODE, "default")

@@ -53,7 +53,7 @@ describe("api client demo-mode fallback", () => {
   it("produces a pending approval in approval-gated mode for a write tool", async () => {
     mockBackendDown();
     const res = await api.chat({
-      message: "Draft an email to ops@hermes.dev",
+      message: "Draft an email to ops@aria.dev",
       mode: "approval_gated",
     });
     expect(res.data.status).toBe("pending_approval");

@@ -1,4 +1,4 @@
-"""Task creator tool — persists a task.
+"""ARIA task creator tool — persists a task.
 
 By default (no store wired) it returns a deterministic confirmation string so the
 tool works fully offline in tests and the demo. When bound to a task store via

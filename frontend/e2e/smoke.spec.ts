@@ -5,9 +5,9 @@ import { expect, test } from "@playwright/test";
 
 test("home page loads with hero and nav", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/Hermes/i);
+  await expect(page).toHaveTitle(/ARIA/i);
   await expect(
-    page.getByRole("heading", { name: /Hermes Agent Control Console/i })
+    page.getByRole("heading", { name: /ARIA Agent Control Console/i })
   ).toBeVisible();
 });
 

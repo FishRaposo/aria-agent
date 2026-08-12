@@ -1,6 +1,6 @@
 # Security
 
-Hermes is an agent framework, so its threat model centers on **untrusted natural
+ARIA is an agent framework, so its threat model centers on **untrusted natural
 language driving privileged actions**. The query (and, in a RAG/agent setting,
 retrieved content) is attacker-controllable; tool execution, file access, and
 outbound artifacts are the assets to protect. This document covers secrets,
@@ -34,7 +34,7 @@ Hard boundaries enforced in code:
 |------|----------|
 | `calculator` | AST whitelist — only numeric literals + fixed operators. No names, calls, attributes, imports. `eval()` is **not** used. Exponent capped. |
 | `file_reader` | Confined to an allowlisted sandbox root. Paths are resolved and checked with `Path.is_relative_to`; `..` traversal and absolute paths outside the sandbox are rejected. Output is truncated UTF-8 text only. |
-| `web_search` | Outbound HTTP only to a configured `HERMES_SEARCH_API_URL`; offline it makes no network calls at all. |
+| `web_search` | Outbound HTTP only to a configured `ARIA_SEARCH_API_URL`; offline it makes no network calls at all. |
 | `task_creator` | Writes only to the project's own task store; no arbitrary SQL. |
 | `email_draft` | **Never sends.** Returns a structured draft object with `sent: false`. There is no SMTP/transport code. |
 
@@ -44,7 +44,7 @@ arguments, so malformed or unexpected fields are rejected up front.
 
 ## Prompt injection
 
-Because the query and any routed arguments originate from untrusted input, Hermes
+Because the query and any routed arguments originate from untrusted input, ARIA
 treats the LLM's routing decision as **advice, not authority**:
 
 1. **Tool allowlist on the routing decision.** `LLMRouter` parses the model's
@@ -89,7 +89,7 @@ treats the LLM's routing decision as **advice, not authority**:
 
 - [ ] Set real keys via a secret manager, never `.env` in the image.
 - [ ] Run in `approval_gated` mode for any agent with side-effecting tools.
-- [ ] Point `HERMES_SANDBOX_DIR` at a dedicated, least-privilege directory.
+- [ ] Point `ARIA_SANDBOX_DIR` at a dedicated, least-privilege directory.
 - [ ] Put auth + rate limiting in front of the API.
 - [ ] Add a prompt-injection / content classifier before high-privilege tools.
 - [ ] Apply Alembic migrations and use a least-privilege DB role.

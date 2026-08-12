@@ -1,11 +1,11 @@
 """Agent loop tests — sim routing, permissions, approval pausing, tracing."""
 
-from hermes.agents import HermesAgent, RunResult
-from hermes.approvals import ApprovalGate
-from hermes.memory import AgentMemory
-from hermes.routing import build_router
-from hermes.store import InMemoryApprovalStore
-from hermes.tools import build_default_registry
+from aria.agents import AriaAgent, RunResult
+from aria.approvals import ApprovalGate
+from aria.memory import AgentMemory
+from aria.routing import build_router
+from aria.store import InMemoryApprovalStore
+from aria.tools import build_default_registry
 
 
 class TestAgentRun:
@@ -57,7 +57,7 @@ class TestAgentRun:
 class TestApprovalGating:
     def _gated_agent(self, store):
         registry = build_default_registry()
-        return HermesAgent(
+        return AriaAgent(
             registry,
             ApprovalGate(enabled=True, mode="approval_gated", store=store),
             router=build_router("keyword"),
@@ -97,10 +97,10 @@ class TestApprovalGating:
 
 class TestToolErrors:
     def test_unknown_tool_returns_error(self, registry):
-        from hermes.routing import RouteDecision
-        from hermes.tracing import TraceLog
+        from aria.routing import RouteDecision
+        from aria.tracing import TraceLog
 
-        agent = HermesAgent(
+        agent = AriaAgent(
             registry,
             ApprovalGate(enabled=True, mode="free_running"),
             router=build_router("keyword"),

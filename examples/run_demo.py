@@ -1,4 +1,4 @@
-"""End-to-end Hermes agent demo — offline, no keys, no database.
+"""End-to-end ARIA agent demo — offline, no keys, no database.
 
 Exercises the full framework: keyword + simulated-LLM routing, every builtin
 tool, free-running vs approval-gated modes, the approval queue (pending ->
@@ -11,13 +11,13 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
-from hermes.agents import HermesAgent  # noqa: E402
-from hermes.approvals import ApprovalGate  # noqa: E402
-from hermes.llm_client import AgentLLMClient  # noqa: E402
-from hermes.memory import AgentMemory  # noqa: E402
-from hermes.routing import build_router  # noqa: E402
-from hermes.store import InMemoryApprovalStore, InMemoryTaskStore  # noqa: E402
-from hermes.tools import build_default_registry  # noqa: E402
+from aria.agents import AriaAgent  # noqa: E402
+from aria.approvals import ApprovalGate  # noqa: E402
+from aria.llm_client import AgentLLMClient  # noqa: E402
+from aria.memory import AgentMemory  # noqa: E402
+from aria.routing import build_router  # noqa: E402
+from aria.store import InMemoryApprovalStore, InMemoryTaskStore  # noqa: E402
+from aria.tools import build_default_registry  # noqa: E402
 
 
 def _print_run(label, result):
@@ -37,7 +37,7 @@ def _print_run(label, result):
 
 
 def main() -> int:
-    print("--- Running Hermes Agent Framework Demo ---")
+    print("--- Running ARIA Agent Framework Demo ---")
 
     task_store = InMemoryTaskStore()
     approval_store = InMemoryApprovalStore()
@@ -47,7 +47,7 @@ def main() -> int:
     router = build_router("auto", llm_client=AgentLLMClient())
 
     # 1) Free-running agent runs safe + risky tools directly.
-    free_agent = HermesAgent(
+    free_agent = AriaAgent(
         registry,
         ApprovalGate(enabled=True, mode="free_running", store=approval_store),
         router=router,
@@ -64,7 +64,7 @@ def main() -> int:
     )
 
     # 2) Approval-gated agent: a risky tool (task_creator) pauses for approval.
-    gated_agent = HermesAgent(
+    gated_agent = AriaAgent(
         registry,
         ApprovalGate(enabled=True, mode="approval_gated", store=approval_store),
         router=router,
