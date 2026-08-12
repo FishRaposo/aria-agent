@@ -17,7 +17,7 @@ returns a plain string (used by the original tests and the demo), while
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from loguru import logger
 
@@ -28,6 +28,9 @@ from .routing import KeywordRouter, RouteDecision
 from .store import ApprovalStatus
 from .tools import ToolRegistry
 from .tracing import TraceLog
+
+if TYPE_CHECKING:
+    from .skills import SkillSession
 
 
 @dataclass
@@ -43,6 +46,7 @@ class RunResult:
     approval: Optional[Dict[str, Any]] = None
     trace: Dict[str, Any] = field(default_factory=dict)
     cost: Dict[str, Any] = field(default_factory=dict)
+    skill_context: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -55,6 +59,7 @@ class RunResult:
             "approval": self.approval,
             "trace": self.trace,
             "cost": self.cost,
+            "skill_context": self.skill_context,
         }
 
 
@@ -69,6 +74,7 @@ class AriaAgent:
         router: Optional[Any] = None,
         memory: Optional[Any] = None,
         mode: Optional[str] = None,
+        skill_session: Optional["SkillSession"] = None,
     ):
         self.registry = registry
         self.approval_gate = approval_gate
@@ -77,6 +83,7 @@ class AriaAgent:
         # Default router is deterministic keyword routing (offline, no keys).
         self.router = router or KeywordRouter(tool_names=registry.names())
         self.mode = mode or approval_gate.mode
+        self.skill_session = skill_session
 
     # --- public API ---------------------------------------------------------
     def run(self, user_query: str, trace=None, cost_tracker=None) -> str:
@@ -101,8 +108,12 @@ class AriaAgent:
         self.memory.add_message("user", user_query)
         trace.add_reasoning(f"Processing query: {user_query}")
         context = self.memory.get_context(limit=6)
-
-        decision = self._route(user_query, context, cost_tracker)
+        route_query = user_query
+        if self.skill_session is not None:
+            prepared = self.skill_session.prepare_turn(user_query, context)
+            route_query = prepared.query
+            context = prepared.context
+        decision = self._route(route_query, context, cost_tracker)
         trace.add_decision(
             "route",
             f"tool={decision.tool} via {decision.strategy}",
@@ -248,6 +259,9 @@ class AriaAgent:
         cost_tracker,
         approval=None,
     ) -> RunResult:
+        skill_context = None
+        if self.skill_session is not None:
+            skill_context = self.skill_session.report().to_dict()
         return RunResult(
             run_id=run_id,
             query=query,
@@ -258,4 +272,5 @@ class AriaAgent:
             approval=approval,
             trace=trace.summary(),
             cost=cost_tracker.summary(),
+            skill_context=skill_context,
         )

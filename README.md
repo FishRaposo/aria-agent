@@ -7,7 +7,6 @@
 ![Pydantic](https://img.shields.io/badge/Pydantic-v2-e92063?logo=pydantic&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.3+-37814a?logo=celery&logoColor=white)
 ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-d71f00)
-![Tests](https://img.shields.io/badge/tests-152%20passing-success)
 
 ARIA runs **fully offline by default** — no database, no Redis, no API keys — using deterministic simulation. When you supply a database it persists state; when you supply OpenAI/Anthropic keys it routes with a real LLM. Nothing about the demo or the test suite requires the network.
 
@@ -22,6 +21,9 @@ Most agent frameworks optimize for flexibility and chaining at the cost of *cont
 - **A real approval queue** — risky tool calls become *pending approvals* that a human approves or rejects, with a timeout, persisted so they survive a restart.
 - **Bounded, persistent memory** — conversation context that survives restarts and never grows unbounded.
 - **Cost and trace observability** — every run emits an AgentTrace-compatible span tree and a token/cost summary.
+- **Progressive-disclosure skills** — `aria.skills` discovers bounded metadata
+  from trusted project, user, and built-in scopes; full instructions load only
+  through explicit activation, with per-turn deduplication and context evidence.
 
 ARIA is a minimal, opinionated framework that prioritizes **safety boundaries and observability** over feature count.
 
@@ -142,7 +144,23 @@ Three focused example agents are also included:
 make test   # pytest -q
 ```
 
-**152 tests, all offline** (no network, DB, or keys — using `shared_core.testing` mocks):
+The skill layer has a focused offline verification path that does not import
+the repository-wide `shared_core` fixtures and requires no API keys or network:
+
+```bash
+python -m pytest --noconftest tests/test_skills.py -q
+```
+
+Use `SkillRegistry.discover(...)` for metadata discovery and
+`registry.create_session(...)` for explicit activation. Project-scope skills
+are ignored unless `trust_project=True`; user and built-in scope roots are
+supplied explicitly by the embedding application. Passing the resulting
+session as `AriaAgent(..., skill_session=session)` adds skill context reporting
+without replacing the existing tool registry or approval gate.
+
+The repository-wide suite is designed to run offline (no network, DB, or keys)
+using `shared_core.testing` mocks. It requires the sibling `shared_core` package
+to be installed; the focused command above does not.
 
 - **Unit** — every core module: tools (incl. AST-calculator golden cases + sandbox-traversal safety), routing (golden keyword + sim-LLM decisions), memory (in-memory + persistent), approvals (lifecycle on both backends), costs/tracing (golden cost equals `shared_core.pricing`).
 - **Integration** — the agent loop end-to-end across both routers and both modes.
