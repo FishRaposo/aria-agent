@@ -108,7 +108,8 @@ class AriaAgent:
         logger.info("Agent run {} received: {}", run_id, user_query)
         self.memory.add_message("user", user_query)
         trace.add_reasoning(f"Processing query: {user_query}")
-        context = self.memory.get_context(limit=6)
+        base_context = self.memory.get_context(limit=6)
+        context = base_context
         route_query = user_query
         if self.skill_session is not None:
             prepared = self.skill_session.prepare_turn(user_query, context)
@@ -126,7 +127,15 @@ class AriaAgent:
         )
 
         if not decision.is_tool:
-            response = self._generate_response(user_query, context, cost_tracker)
+            # An LLM routing request may already have consumed the skill-enriched
+            # context. Keep provider delivery exactly once per turn by giving a
+            # follow-up direct-response request only the base conversation.
+            response_context = (
+                base_context if decision.context_consumed else context
+            )
+            response = self._generate_response(
+                user_query, response_context, cost_tracker
+            )
             self.memory.add_message("system", response)
             return self._finish(
                 run_id, user_query, response, "completed", decision, trace, cost_tracker

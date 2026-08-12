@@ -431,3 +431,86 @@ def test_llm_router_places_skill_context_in_request_exactly_once(
 
     assert len(client.prompts) == 1
     assert client.prompts[0].count(instructions) == 1
+
+
+def test_agent_no_tool_flow_delivers_skill_to_one_provider_request(
+    workspace_tmp_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    logger = SimpleNamespace(
+        info=lambda *args, **kwargs: None,
+        warning=lambda *args, **kwargs: None,
+        error=lambda *args, **kwargs: None,
+    )
+    monkeypatch.setitem(sys.modules, "loguru", SimpleNamespace(logger=logger))
+
+    class DummyCostTracker:
+        def record_call(self, *args, **kwargs):
+            return 0.0
+
+        def summary(self):
+            return {"total_calls": 2, "total_cost": 0.0}
+
+    class DummyTrace:
+        def add_reasoning(self, *args, **kwargs):
+            return None
+
+        def add_decision(self, *args, **kwargs):
+            return None
+
+        def summary(self):
+            return {"spans": []}
+
+    monkeypatch.setitem(
+        sys.modules, "aria.costs", SimpleNamespace(CostTracker=DummyCostTracker)
+    )
+    monkeypatch.setitem(sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace))
+    monkeypatch.setitem(sys.modules, "aria.tools", SimpleNamespace(ToolRegistry=object))
+    from aria.agents import AriaAgent
+    from aria.approvals import ApprovalGate
+    from aria.memory import AgentMemory
+    from aria.routing import KeywordRouter, LLMRouter
+
+    instructions = "ONE_PROVIDER_CONSUMER_ONLY"
+    _write_skill(workspace_tmp_root, "one-consumer", body=instructions)
+    session = SkillRegistry.discover(user_root=workspace_tmp_root).create_session()
+
+    class RecordingClient:
+        def __init__(self) -> None:
+            self.prompts = []
+
+        def generate(self, model, prompt, mocked_response=None):
+            self.prompts.append(prompt)
+            if prompt.startswith("You are a tool router"):
+                return {"response": '{"tool": null, "arguments": {}}'}
+            return {"response": "direct response", "telemetry": {}}
+
+    class EmptyRegistry:
+        @staticmethod
+        def names():
+            return []
+
+    client = RecordingClient()
+    router = LLMRouter(
+        llm_client=client,
+        keyword_fallback=KeywordRouter(tool_names=[]),
+        simulate=False,
+    )
+    agent = AriaAgent(
+        EmptyRegistry(),
+        ApprovalGate(enabled=True, mode="free_running"),
+        router=router,
+        memory=AgentMemory(),
+        skill_session=session,
+    )
+
+    result = agent.run_structured(
+        "/one-consumer explain the release",
+        trace=DummyTrace(),
+        cost_tracker=DummyCostTracker(),
+    )
+
+    assert result.status == "completed"
+    assert len(client.prompts) == 2
+    assert sum(prompt.count(instructions) for prompt in client.prompts) == 1
+    assert instructions in client.prompts[0]
+    assert instructions not in client.prompts[1]

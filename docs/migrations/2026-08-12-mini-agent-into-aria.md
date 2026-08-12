@@ -26,8 +26,11 @@ clone.
 - Bounded resource-path listing and explicit truncation evidence.
 - Per-turn duplicate activation suppression and a structured context report
   containing the exact hint and instruction payloads actually delivered.
-- Exact-once delivery of activated instructions to ARIA's LLM routing and
-  response request context while preserving the existing approval/tool loop.
+- Exact-once provider delivery of activated instructions: the LLM routing
+  request is the designated consumer when it runs; a subsequent no-tool
+  response request receives only the base conversation. If no LLM routing
+  request consumed the enriched context, the response request receives it.
+  The existing approval/tool loop remains authoritative.
 - Offline operation with no API key, provider, CLI, database, or network
   dependency.
 

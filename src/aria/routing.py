@@ -30,6 +30,7 @@ class RouteDecision:
     arguments: Dict[str, Any] = field(default_factory=dict)
     strategy: str = "keyword"
     rationale: str = ""
+    context_consumed: bool = False
 
     @property
     def is_tool(self) -> bool:
@@ -178,8 +179,10 @@ class LLMRouter:
         mocked = _simulate_route(query, self.fallback) if self.simulate else None
 
         raw_text = None
+        context_consumed = False
         if self.llm_client is not None:
             try:
+                context_consumed = bool(context)
                 result = self.llm_client.generate(
                     self.model, prompt, mocked_response=mocked
                 )
@@ -205,11 +208,13 @@ class LLMRouter:
 
         decision = self._parse(raw_text)
         if decision is not None:
+            decision.context_consumed = context_consumed
             return decision
 
         # Fallback: keyword routing (deterministic, always available).
         kw = self.fallback.route(query, context)
         kw.strategy = "keyword_fallback"
+        kw.context_consumed = context_consumed
         return kw
 
     def _parse(self, raw_text: Optional[str]) -> Optional[RouteDecision]:
