@@ -1,13 +1,14 @@
 """SQLAlchemy ORM models for persistent ARIA agent state.
 
 All models extend the shared ``Base`` plus ``UUIDMixin``/``TimestampMixin`` from
-``shared_core.database`` so ids and timestamps are consistent across the
+``aria.internal.vendor_core.database`` so ids and timestamps are consistent across the
 portfolio. These back the persistent stores in ``store_db.py``; the in-memory
 fallbacks in ``store.py`` mirror the same fields.
 """
 
-from shared_core.database import Base, TimestampMixin, UUIDMixin
 from sqlalchemy import Column, Float, Integer, String, Text
+
+from aria.internal.vendor_core.database import Base, TimestampMixin, UUIDMixin
 
 
 class AgentRun(Base, UUIDMixin, TimestampMixin):

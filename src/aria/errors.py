@@ -1,4 +1,4 @@
-"""ARIA error exports from the shared core package."""
+"""ARIA error compatibility exports from the internal vendor namespace."""
 
-# Expose from shared-core to avoid duplicate code
-from shared_core.errors import application_error_handler  # noqa: F401
+# Keep the historical public import while using the packaged local module.
+from aria.internal.vendor_core.errors import application_error_handler  # noqa: F401

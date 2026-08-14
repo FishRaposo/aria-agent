@@ -1,9 +1,8 @@
 """Cost tracking + trace emission tests (golden, deterministic)."""
 
-from shared_core.pricing import calculate_cost
-from shared_core.tracing import SpanType
-
 from aria.costs import CostTracker
+from aria.internal.vendor_core.pricing import calculate_cost
+from aria.internal.vendor_core.tracing import SpanType
 from aria.tracing import TraceLog
 
 
@@ -16,7 +15,7 @@ class TestCostTracker:
         assert summary["total_cost"] > 0.0
 
     def test_cost_matches_shared_pricing(self):
-        # Golden: tracker must agree with shared_core.pricing exactly.
+        # Golden: tracker must agree with aria.internal.vendor_core.pricing exactly.
         tracker = CostTracker()
         cost = tracker.record_call("gpt-4o", 1_000_000, 1_000_000, 10.0)
         assert cost == calculate_cost("gpt-4o", 1_000_000, 1_000_000)

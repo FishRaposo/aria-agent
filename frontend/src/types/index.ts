@@ -12,7 +12,7 @@ export type AgentMode = "free_running" | "approval_gated";
 export type SpanType = "llm" | "tool" | "retrieval" | "decision" | "other";
 export type SpanStatus = "ok" | "error";
 
-/** A single canonical span (shared_core.tracing.Span.to_dict). */
+/** A single canonical span produced by the packaged tracing compatibility layer. */
 export interface Span {
   span_id: string;
   trace_id: string;

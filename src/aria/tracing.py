@@ -1,17 +1,17 @@
-"""ARIA execution tracing built on shared_core canonical spans.
+"""ARIA execution tracing built on aria.internal.vendor_core canonical spans.
 
 ``TraceLog`` records a step-by-step trace of an agent run and produces, in
-addition to the human-readable entry list, a list of ``shared_core.tracing.Span``
+addition to the human-readable entry list, a list of ``aria.internal.vendor_core.tracing.Span``
 objects (one root span per run plus one child span per tool call / decision).
 The spans are AgentTrace-compatible (``trace_id``/``span_id``/``parent_span_id``/
 ``span_type``/``status``/timings/attributes) so the run can be ingested by an
-observability backend or POSTed to a collector via ``shared_core.tracing.emit_span``.
+observability backend or POSTed to a collector via ``aria.internal.vendor_core.tracing.emit_span``.
 """
 
 import time
 from typing import Any, Dict, List, Optional
 
-from shared_core.tracing import Span, SpanStatus, SpanType, new_trace_id
+from aria.internal.vendor_core.tracing import Span, SpanStatus, SpanType, new_trace_id
 
 
 class TraceLog:

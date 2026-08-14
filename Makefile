@@ -1,41 +1,68 @@
-.PHONY: install dev test lint format typecheck docker-up docker-down demo migrate worker clean help
+.PHONY: install dev test lint format typecheck evidence verify-evidence package wheel-check forbidden frontend-install frontend-test frontend-lint frontend-build docker-up docker-down migrate worker demo clean help
 
-install: ## Install shared-core and project dependencies
-	pip install -e "../shared-core[dev,docparse]" numpy
-	pip install -e ".[dev]"
+install: ## Install ARIA and its declared development tools
+	python -m pip install -e ".[dev]"
 
 dev: ## Start the FastAPI development server
 	uvicorn aria.main:app --reload --app-dir src --host 0.0.0.0 --port 8000
 
-test: ## Run the test suite with pytest
+test: ## Run the offline Python suite
 	pytest -q
 
-lint: ## Lint source code with ruff
-	ruff check src/aria tests examples
+lint: ## Lint source code with Ruff
+	ruff check src/aria tests examples scripts
 
-format: ## Auto-format source code with ruff
-	ruff format src/aria tests examples
+format: ## Check source formatting with Ruff
+	ruff format --check src/aria tests examples scripts
 
-typecheck: ## Static type checking with pyright
+typecheck: ## Static type checking with Pyright
 	pyright src/
 
-docker-up: ## Start PostgreSQL and Redis containers
+evidence: ## Generate and verify the deterministic offline portfolio bundle
+	python scripts/portfolio_demo.py
+	python scripts/verify_portfolio_evidence.py
+
+verify-evidence: ## Verify an existing evidence bundle
+	python scripts/verify_portfolio_evidence.py
+
+package: ## Build the wheel and verify its vendored package contents
+	python -m build
+	python scripts/check_wheel_contents.py
+
+wheel-check: package
+
+forbidden: ## Scan source and operational files for archived dependencies
+	python scripts/check_forbidden_dependencies.py
+
+frontend-install: ## Install the dashboard from its lockfile
+	cd frontend && npm ci
+
+frontend-test: ## Run dashboard unit tests
+	cd frontend && npm test -- --run
+
+frontend-lint: ## Run dashboard lint checks
+	cd frontend && npm run lint
+
+frontend-build: ## Build the dashboard for production
+	cd frontend && npm run build
+
+docker-up: ## Start optional PostgreSQL and Redis containers
 	docker compose up -d
 
-docker-down: ## Stop all Docker containers
+docker-down: ## Stop optional Docker services
 	docker compose down
 
-migrate: ## Apply database migrations (optional — DB is not required)
+migrate: ## Apply optional database migrations
 	alembic upgrade head
 
-demo: ## Run the end-to-end agent demo
+demo: ## Run the end-to-end offline agent demo
 	python examples/run_demo.py
 
-worker: ## Start the Celery worker
+worker: ## Start the optional Celery worker
 	celery -A aria.worker worker --loglevel=info
 
-clean: ## Remove caches and temporary files
-	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]; shutil.rmtree('.pytest_cache', ignore_errors=True); shutil.rmtree('.ruff_cache', ignore_errors=True)"
+clean: ## Remove local caches and generated build output
+	python -c "import shutil, pathlib; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]; [shutil.rmtree(p, ignore_errors=True) for p in ('dist','build','.pytest_cache','.ruff_cache','.pyright')]"
 
-help: ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+help: ## Show available commands
+	@python -c "import re; from pathlib import Path; [print(f'{m.group(1):18} {m.group(2)}') for m in re.finditer(r'^([a-zA-Z_-]+):.*?## (.*)$$', Path('Makefile').read_text(), re.M)]"

@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from shared_core.database import Base
+from aria.internal.vendor_core.database import Base
 from sqlalchemy import create_engine
 
 from alembic import context

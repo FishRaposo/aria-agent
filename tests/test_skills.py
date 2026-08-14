@@ -336,7 +336,9 @@ def test_agent_delivers_activated_body_once_and_keeps_approval_gate(
     monkeypatch.setitem(
         sys.modules, "aria.costs", SimpleNamespace(CostTracker=DummyCostTracker)
     )
-    monkeypatch.setitem(sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace))
+    monkeypatch.setitem(
+        sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace)
+    )
     monkeypatch.setitem(sys.modules, "aria.tools", SimpleNamespace(ToolRegistry=object))
     from aria.agents import AriaAgent
     from aria.approvals import ApprovalGate
@@ -463,7 +465,9 @@ def test_agent_no_tool_flow_delivers_skill_to_one_provider_request(
     monkeypatch.setitem(
         sys.modules, "aria.costs", SimpleNamespace(CostTracker=DummyCostTracker)
     )
-    monkeypatch.setitem(sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace))
+    monkeypatch.setitem(
+        sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace)
+    )
     monkeypatch.setitem(sys.modules, "aria.tools", SimpleNamespace(ToolRegistry=object))
     from aria.agents import AriaAgent
     from aria.approvals import ApprovalGate
@@ -546,7 +550,9 @@ def test_route_exception_delivers_skill_once_to_fallback_response(
     monkeypatch.setitem(
         sys.modules, "aria.costs", SimpleNamespace(CostTracker=DummyCostTracker)
     )
-    monkeypatch.setitem(sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace))
+    monkeypatch.setitem(
+        sys.modules, "aria.tracing", SimpleNamespace(TraceLog=DummyTrace)
+    )
     monkeypatch.setitem(sys.modules, "aria.tools", SimpleNamespace(ToolRegistry=object))
     from aria.agents import AriaAgent
     from aria.approvals import ApprovalGate

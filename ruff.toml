@@ -11,7 +11,10 @@ select = [
     "C",  # flake8-comprehensions
     "B",  # flake8-bugbear
 ]
-ignore = []
+ignore = [
+    "E501",  # long provenance/doc strings are intentionally readable
+    "C901",  # orchestration and verification functions are explicit state machines
+]
 
 [format]
 quote-style = "double"

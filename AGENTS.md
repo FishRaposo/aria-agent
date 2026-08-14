@@ -1,92 +1,83 @@
-# AGENTS.md — aria-agent-framework
+# AGENTS.md — aria-agent
 
-## What This Is
+ARIA is a controlled, offline-first agent harness. Work from the repository
+itself: the project is self-contained and must not acquire sibling-directory,
+Git-installed, hosted-database, or provider-credential requirements.
 
-ARIA is a controlled AI agent framework: a schema-validated tool registry with
-permission levels, dual routing (deterministic keyword + LLM with sim/real),
-a real human-in-the-loop approval queue, persistent memory, cost tracking, and
-AgentTrace-compatible execution tracing. It is **offline-first**: the demo and
-test suite are designed for no database, Redis, or API keys, using deterministic
-simulation; real OpenAI/Anthropic and PostgreSQL paths activate when configured.
-
-## Commands
+## Canonical commands
 
 ```bash
-make install     # pip install -e "../shared-core[dev,docparse]" numpy && pip install -e ".[dev]"
-make dev         # uvicorn aria.main:app --reload --app-dir src (:8000)
-make test        # pytest -q (full suite; shared_core must be installed)
-make lint        # ruff check src/aria tests examples
-make format      # ruff format src/aria tests examples
-make demo        # python examples/run_demo.py
-make migrate     # alembic upgrade head (optional — DB not required)
-make worker      # celery -A aria.worker worker
-make docker-up   # Postgres (pgvector:pg16) + Redis 7
-python -m pytest --noconftest tests/test_skills.py -q  # focused skills, offline/no shared_core import
+python -m pip install -e ".[dev]"
+pytest -q
+pytest --noconftest tests/test_skills.py -q
+ruff check src/aria tests examples scripts
+ruff format --check src/aria tests examples scripts
+pyright src/
+make evidence
+make package
+make forbidden
 ```
 
-## Entry Point
+The frontend uses its own lockfile:
 
-`src/aria/main.py` — FastAPI app. On import it runs the DB-availability probe
-(`aria.db.check_db`) and selects persistent or in-memory stores, then wires the
-registry, router, approval gate, and per-request agents.
+```bash
+cd frontend
+npm ci
+npm test -- --run
+npm run lint
+npm run build
+npx playwright install chromium
+npm run test:e2e -- --project=chromium
+```
 
-## Source Modules
+## Architecture rules
 
-| File | Purpose |
-|------|---------|
-| `main.py` | FastAPI app + all endpoints; store/agent wiring |
-| `agents.py` | `AriaAgent` — reason/route/approve/act loop; `RunResult` |
-| `routing.py` | `KeywordRouter`, `LLMRouter`, `RouteDecision`, `build_router` |
-| `llm_client.py` | `AgentLLMClient` — offline-first LLM wrapper |
-| `tools.py` | `ToolRegistry`, `Permission`, `build_default_registry` |
-| `skills.py` | bounded `SKILL.md` discovery, explicit activation sessions, context reports |
-| `builtin_tools/` | calculator (AST), web_search, file_reader (sandboxed), task_creator, email_draft |
-| `approvals.py` | `ApprovalGate` (free-running / approval-gated) |
-| `memory.py` | `AgentMemory` + `PersistentMemory` + `get_memory` |
-| `store.py` / `store_db.py` | in-memory + DB stores for runs/tasks/approvals |
-| `db.py` | DB probe + store selection |
-| `models.py` | SQLAlchemy models (agent_runs, memory_messages, approvals, created_tasks) |
-| `costs.py` | `CostTracker` over `shared_core.llmmetrics` |
-| `tracing.py` | `TraceLog` → `shared_core.tracing.Span` trees |
-| `worker.py` | Celery tasks: `aria.run_agent`, `aria.sweep_expired_approvals` |
-| `config.py` | `AppConfig(BaseAppConfig)` — agent mode/routing, probe timeout |
+- `src/aria/internal/core/` owns execution contracts, planning, safety, retry,
+  rate-limit, replay, streaming events, and local memory indexing.
+- Public modules (`aria.agents`, `aria.routing`, `aria.tools`,
+  `aria.approvals`, `aria.memory`, `aria.costs`, `aria.tracing`) are compatibility
+  facades. Preserve existing imports, response keys, route vocabulary, approval
+  states, cost semantics, and `AriaAgent.run()` string behavior.
+- `src/aria/internal/vendor_core/` contains only the server-used compatibility
+  subset of the archived v1.3.0 source. Preserve attribution and do not restore
+  an external package dependency.
+- Offline defaults are `planning_mode=single`, `safety_mode=warn`, no retries,
+  no rate limit, no memory retrieval requirement, and in-memory stores.
+- Multi-hop, safety blocking, retries, rate limits, SSE, replay, local memory,
+  and the approval sweeper are opt-in/additive capabilities.
+- Risky tools remain approval-gated in `approval_gated` mode. Dry-run replay is
+  the default and must not execute side effects.
 
-## API Endpoints
+## Evidence and provenance
 
-`POST /agent/chat` · `GET /agent/runs` · `GET /agent/runs/{id}` ·
-`GET /agent/trace/{id}` · `GET /approvals` · `GET /approvals/{id}` ·
-`POST /approvals/{id}/approve` · `POST /approvals/{id}/reject` ·
-`GET /tools` · `GET /tools/{name}` · `GET /health`
+`make evidence` is the canonical portfolio demonstration. Generated artifacts
+are ignored; only the normalized fixture under
+`tests/fixtures/golden/portfolio-evidence.json` is tracked. Do not put tokens,
+keys, environment paths, timestamps, random IDs, or runtime durations in the
+fixture. Run the dependency scan after changing build or documentation files.
 
-## shared-core usage
+The vendored source, license, and source commit are recorded in
+`THIRD_PARTY_NOTICES.md`. See `docs/EVIDENCE.md` for the redaction and replay
+contract.
 
-config (`BaseAppConfig`), database (`Base`, mixins, `DatabaseManager`), errors
-(`application_error_handler`), logging (`setup_logging`), health (`check_health`),
-llm (`LLMClientFactory`), pricing (`calculate_cost`), llmmetrics (`LLMMetrics`),
-tracing (`Span`, `SpanType`, `new_trace_id`), clients (`BaseHTTPClient`), tasks
-(`create_celery_app`), testing (`MockDatabase`, `MockRedisClient`).
+## Tests before changing score-sensitive behavior
 
-## Tests
+Capture or update golden outputs first. Keep tests for tools, routing, approval
+transitions, stores, worker helpers, costs, tracing, skills, API wire shapes,
+execution policies, and evidence. A refactor is not complete until the full
+offline suite and the focused skills suite pass.
 
-`tests/` — unit (tools incl. AST + sandbox safety, routing, memory, approvals,
-costs/tracing, stores), integration (agent loop), API (every endpoint + errors),
-worker, and focused skill tests. The full suite uses `shared_core.testing` mocks;
-the focused skills command above has no `shared_core` dependency.
+## Documentation boundaries
 
-## Conventions
+Update architecture, setup, security, failure-mode, roadmap, and evidence docs
+when behavior changes. Mark historical implementation plans as historical. Keep
+hosted/team workflows, external notifications, OTLP protobuf/gRPC, mandatory
+infrastructure, and real provider credentials explicitly deferred.
 
-- Offline-first / real-when-keyed for every external effect.
-- Tools return strings (never raise to the caller); the registry validates args.
-- Add new tools via `build_default_registry`; mark side-effecting tools
-  `Permission.REQUIRES_APPROVAL`.
-- Keep cost on `shared_core.llmmetrics` and tracing on `shared_core.tracing`;
-  golden tests assert numeric parity with `shared_core.pricing`.
-- Skill discovery is offline and metadata-first. Project scope requires
-  `trust_project=True`; instruction bodies enter context only through explicit
-  `SkillSession` activation, and the existing tool approval loop stays in
-  control.
+## Git discipline
 
-## When to Update This File
-
-Update when tools/endpoints/modes change, the persistence model changes, new
-shared-core modules are adopted, or the routing strategy changes.
+Before edits, pull/rebase the current branch. Commit ARIA, the public site, and
+hub receipt changes separately. Before handoff run `git diff --check`, the
+forbidden scan, the receipt checker, `node check-hub.mjs`, and `node sync-repos.mjs`.
+Do not remove the queue copy until the receipt is green and the owner has the
+manual visual/positioning-QA handoff.

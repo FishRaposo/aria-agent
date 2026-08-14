@@ -344,9 +344,7 @@ class SkillSession:
         return SkillContextReport(
             visible_skill_count=len(self.registry),
             eager_hints_used=bool(self._eager_hint_payloads),
-            eager_hint_payloads=tuple(
-                dict(item) for item in self._eager_hint_payloads
-            ),
+            eager_hint_payloads=tuple(dict(item) for item in self._eager_hint_payloads),
             loaded_instruction_bodies=tuple(
                 dict(item) for item in self._loaded_this_turn
             ),
@@ -374,9 +372,7 @@ def _discover_scope(root: Path, scope: str) -> Iterator[SkillMetadata]:
             if not source.is_file():
                 continue
             try:
-                document = _parse_metadata_frontmatter(
-                    _read_frontmatter_only(source)
-                )
+                document = _parse_metadata_frontmatter(_read_frontmatter_only(source))
             except (OSError, UnicodeError, SkillValidationError) as exc:
                 LOGGER.warning("Skipping invalid skill %s: %s", source, exc)
                 continue

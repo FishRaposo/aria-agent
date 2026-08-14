@@ -8,7 +8,7 @@ Two strategies select which tool (if any) an agent should call for a query:
 * :class:`LLMRouter` — wraps an LLM to choose a tool and extract arguments. It
   follows the offline-first / real-when-keyed pattern: a ``mocked_response``
   short-circuits to a deterministic simulated decision, otherwise the real
-  provider path runs via ``shared_core.llm.LLMClientFactory`` with a graceful
+  provider path runs via ``aria.internal.vendor_core.llm.LLMClientFactory`` with a graceful
   fallback to the keyword router on ImportError / no key / any failure.
 
 Both return a :class:`RouteDecision` so the agent loop is router-agnostic.

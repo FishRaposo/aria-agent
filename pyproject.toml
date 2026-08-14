@@ -1,7 +1,10 @@
 [project]
 name = "aria-agent-framework"
 version = "1.0.0"
-description = "Controlled AI agent framework — tool registry with permission levels, LLM/keyword routing, human approval queue, persistent memory, cost tracking, and AgentTrace-compatible execution tracing"
+description = "Canonical clean-break agent harness: approval gates, execution tracing, and progressive-disclosure Agent Skills."
+readme = "README.md"
+license = "MIT"
+authors = [{name = "Vinícius Raposo"}]
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.100.0",
@@ -23,10 +26,12 @@ dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
     "pyright>=1.1.0",
+    "build>=1.2.0",
+    "pytest-asyncio>=0.23.0",
 ]
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

@@ -2,7 +2,7 @@
 
 Mirrors ``llm-cost-latency-monitor/src/llm_monitor/sdk.py``: a ``mocked_response``
 short-circuits to a deterministic simulated response (no network, no keys),
-otherwise the real provider path runs via ``shared_core.llm.LLMClientFactory``
+otherwise the real provider path runs via ``aria.internal.vendor_core.llm.LLMClientFactory``
 with a graceful fallback to mock mode on ImportError / no key / any failure. The
 returned telemetry feeds the run's ``CostTracker``.
 """
@@ -11,7 +11,8 @@ import time
 from typing import Any, Dict, Optional
 
 from loguru import logger
-from shared_core.pricing import calculate_cost
+
+from aria.internal.vendor_core.pricing import calculate_cost
 
 
 class AgentLLMClient:
@@ -68,10 +69,10 @@ class AgentLLMClient:
         return {"response": text, "telemetry": telemetry}
 
     def _call_real(self, model: str, prompt: str, temperature: float, max_tokens: int):
-        """Invoke the real provider via shared_core. Raises on no SDK / no key."""
+        """Invoke the real provider via aria.internal.vendor_core. Raises on no SDK / no key."""
         import asyncio
 
-        from shared_core.llm import LLMClientFactory
+        from aria.internal.vendor_core.llm import LLMClientFactory
 
         openai_key = self.api_keys.get("openai")
         anthropic_key = self.api_keys.get("anthropic")

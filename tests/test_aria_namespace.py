@@ -7,7 +7,6 @@ import importlib
 import importlib.util
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MIGRATION_NOTE = Path(
     "docs/migrations/2026-08-12-" + "her" + "mes-to-aria-clean-break.md"

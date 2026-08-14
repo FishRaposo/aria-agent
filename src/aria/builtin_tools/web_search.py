@@ -2,7 +2,7 @@
 
 Offline-first: with no ``ARIA_SEARCH_API_URL`` configured the tool returns a
 deterministic simulated result (no network). When a search endpoint is
-configured it performs a real HTTP GET via ``shared_core.clients.BaseHTTPClient``
+configured it performs a real HTTP GET via ``aria.internal.vendor_core.clients.BaseHTTPClient``
 and gracefully falls back to the mock on any failure. This is a ``safe``
 permission-level tool (read-only retrieval).
 """
@@ -54,7 +54,7 @@ def _mock_search(query: str) -> str:
 
 async def _real_search(query: str, api_url: str) -> str:
     """Perform a real HTTP search via the shared async client."""
-    from shared_core.clients import BaseHTTPClient
+    from aria.internal.vendor_core.clients import BaseHTTPClient
 
     client = BaseHTTPClient(timeout=10.0)
     try:

@@ -2,17 +2,16 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install shared-core first so its layer caches well.
-COPY shared-core/ /shared-core/
-RUN pip install --no-cache-dir -e /shared-core
+# The image is built from this repository alone.  Optional PostgreSQL/Redis
+# services are supplied by docker-compose, never copied from a sibling repo.
+COPY pyproject.toml README.md LICENSE requirements.txt ./
+COPY src/ ./src/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 
-COPY aria-agent-framework/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY aria-agent-framework/src/ ./src/
-COPY aria-agent-framework/alembic/ ./alembic/
-COPY aria-agent-framework/alembic.ini .
+RUN pip install --no-cache-dir .
 
 ENV PYTHONPATH=/app/src
 
+EXPOSE 8000
 CMD ["uvicorn", "aria.main:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]

@@ -7,9 +7,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from shared_core.testing import MockDatabase, MockRedisClient  # noqa: E402
-
 from aria.approvals import ApprovalGate  # noqa: E402
+from aria.internal.vendor_core.testing import (  # noqa: E402
+    MockDatabase,
+    MockRedisClient,
+)
 from aria.llm_client import AgentLLMClient  # noqa: E402
 from aria.memory import AgentMemory  # noqa: E402
 from aria.routing import build_router  # noqa: E402

@@ -35,7 +35,7 @@ def _get_manager():
     """Lazily build the shared DatabaseManager (imports the DB driver)."""
     global db_manager
     if db_manager is None:
-        from shared_core.database import DatabaseManager
+        from aria.internal.vendor_core.database import DatabaseManager
 
         db_manager = DatabaseManager(
             config.DATABASE_URL,

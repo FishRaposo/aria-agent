@@ -26,6 +26,11 @@ venv/
 dist/
 build/
 *.egg-info/
+artifacts/
+.tmp/
+playwright-report/
+test-results/
+.next/
 
 # Local databases (SQLite fallbacks / scratch)
 *.db

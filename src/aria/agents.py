@@ -1,32 +1,23 @@
-"""The ARIA agent — reason / route / approve / act loop.
+"""Public ARIA agent facade backed by the internal execution engine.
 
-``AriaAgent.run()`` orchestrates a single pass:
-
-1. Persist the user query to memory.
-2. Route the query to a tool (LLM router with keyword fallback, or pure keyword).
-3. Check the tool's permission level against the approval gate. In approval-gated
-   mode a risky tool yields a *pending* approval and the run pauses.
-4. Execute the tool (validating arguments via its Pydantic schema), emitting a
-   trace span and recording cost/latency.
-5. Store the result in memory and return a structured ``RunResult``.
-
-It keeps the simple surface: ``AriaAgent(registry, gate).run(query)``
-returns a plain string (used by the original tests and the demo), while
-``run_structured`` exposes the full result for the API.
+The facade preserves the original ``AriaAgent`` and ``RunResult`` contracts;
+planning, safety, retry, rate-limit, streaming, and replay behavior lives in
+``aria.internal.core.engine.AgentEngine``.
 """
 
-import json
-import time
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from __future__ import annotations
 
-from loguru import logger
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 from .approvals import ApprovalGate
 from .costs import CostTracker
+from .internal.core.contracts import ReplayResult, RunEvent
+from .internal.core.engine import AgentEngine
+from .internal.core.rate_limit import FixedWindowRateLimiter
+from .internal.core.retry import RetryPolicy
 from .memory import AgentMemory
 from .routing import KeywordRouter, RouteDecision
-from .store import ApprovalStatus
 from .tools import ToolRegistry
 from .tracing import TraceLog
 
@@ -48,9 +39,10 @@ class RunResult:
     trace: Dict[str, Any] = field(default_factory=dict)
     cost: Dict[str, Any] = field(default_factory=dict)
     skill_context: Optional[Dict[str, Any]] = None
+    events: Optional[List[Dict[str, Any]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data: Dict[str, Any] = {
             "run_id": self.run_id,
             "query": self.query,
             "response": self.response,
@@ -62,10 +54,13 @@ class RunResult:
             "cost": self.cost,
             "skill_context": self.skill_context,
         }
+        if self.events is not None:
+            data["events"] = self.events
+        return data
 
 
 class AriaAgent:
-    """Runs the central reason-and-act loop with tool execution constraints."""
+    """Compatibility facade for the canonical ARIA execution engine."""
 
     def __init__(
         self,
@@ -76,21 +71,40 @@ class AriaAgent:
         memory: Optional[Any] = None,
         mode: Optional[str] = None,
         skill_session: Optional["SkillSession"] = None,
+        *,
+        planning_mode: str = "single",
+        safety_mode: str = "warn",
+        retry_policies: Optional[dict[str, RetryPolicy]] = None,
+        rate_limiter: Optional[FixedWindowRateLimiter] = None,
+        session_id: str = "default",
     ):
         self.registry = registry
         self.approval_gate = approval_gate
         self.max_steps = max_steps
         self.memory = memory or AgentMemory()
-        # Default router is deterministic keyword routing (offline, no keys).
         self.router = router or KeywordRouter(tool_names=registry.names())
         self.mode = mode or approval_gate.mode
         self.skill_session = skill_session
+        self.engine = AgentEngine(
+            registry,
+            approval_gate,
+            router=self.router,
+            memory=self.memory,
+            max_steps=max_steps,
+            mode=self.mode,
+            skill_session=skill_session,
+            planning_mode=planning_mode,
+            safety_mode=safety_mode,
+            retry_policies=retry_policies,
+            rate_limiter=rate_limiter,
+            session_id=session_id,
+        )
 
-    # --- public API ---------------------------------------------------------
     def run(self, user_query: str, trace=None, cost_tracker=None) -> str:
-        """Backward-compatible entrypoint returning the response string."""
-        result = self.run_structured(user_query, trace=trace, cost_tracker=cost_tracker)
-        return result.response
+        """Backward-compatible entrypoint returning only the response string."""
+        return self.run_structured(
+            user_query, trace=trace, cost_tracker=cost_tracker
+        ).response
 
     def run_structured(
         self,
@@ -101,86 +115,25 @@ class AriaAgent:
     ) -> RunResult:
         import uuid
 
-        run_id = run_id or uuid.uuid4().hex[:8]
-        trace = trace or TraceLog()
-        cost_tracker = cost_tracker or CostTracker()
-
-        logger.info("Agent run {} received: {}", run_id, user_query)
-        self.memory.add_message("user", user_query)
-        trace.add_reasoning(f"Processing query: {user_query}")
-        base_context = self.memory.get_context(limit=6)
-        context = base_context
-        route_query = user_query
-        if self.skill_session is not None:
-            prepared = self.skill_session.prepare_turn(user_query, context)
-            route_query = prepared.query
-            context = prepared.context
-        decision = self._route(route_query, context, cost_tracker)
-        trace.add_decision(
-            "route",
-            f"tool={decision.tool} via {decision.strategy}",
-            attributes={
-                "tool": decision.tool,
-                "strategy": decision.strategy,
-                "rationale": decision.rationale,
-            },
+        resolved_run_id = run_id or uuid.uuid4().hex[:8]
+        resolved_cost = cost_tracker or CostTracker()
+        outcome = self.engine.run_structured(
+            user_query,
+            run_id=resolved_run_id,
+            trace=trace,
+            cost_tracker=resolved_cost,
         )
-
-        if not decision.is_tool:
-            # An LLM routing request may already have consumed the skill-enriched
-            # context. Keep provider delivery exactly once per turn by giving a
-            # follow-up direct-response request only the base conversation.
-            response_context = (
-                base_context if decision.context_consumed else context
-            )
-            response = self._generate_response(
-                user_query, response_context, cost_tracker
-            )
-            self.memory.add_message("system", response)
-            return self._finish(
-                run_id, user_query, response, "completed", decision, trace, cost_tracker
-            )
-
-        # Permission / approval check.
-        try:
-            requires_approval = self.registry.requires_approval(decision.tool)
-        except KeyError:
-            requires_approval = False
-        gate = self.approval_gate.evaluate(
-            decision.tool,
-            decision.arguments,
-            requires_approval=requires_approval,
-            run_id=run_id,
-        )
-
-        if gate["decision"] == ApprovalStatus.PENDING.value:
-            approval = gate["approval"]
-            trace.add_decision(
-                "approval_pending",
-                f"{decision.tool} requires approval ({approval['id']})",
-                attributes={"approval_id": approval["id"]},
-            )
-            response = (
-                f"Action '{decision.tool}' requires approval. "
-                f"Pending approval id: {approval['id']}."
-            )
-            self.memory.add_message("system", response)
-            return self._finish(
-                run_id,
-                user_query,
-                response,
-                "pending_approval",
-                decision,
-                trace,
-                cost_tracker,
-                approval=approval,
-            )
-
-        # Execute the tool.
-        response, status = self._execute_tool(decision, trace)
-        self.memory.add_message("system", response)
-        return self._finish(
-            run_id, user_query, response, status, decision, trace, cost_tracker
+        return RunResult(
+            run_id=resolved_run_id,
+            query=user_query,
+            response=outcome.response,
+            status=outcome.status,
+            mode=self.mode,
+            route=outcome.decision.strategy if outcome.decision else None,
+            approval=outcome.approval,
+            trace=outcome.trace,
+            cost=outcome.cost,
+            skill_context=outcome.skill_context,
         )
 
     def execute_approved(
@@ -189,100 +142,40 @@ class AriaAgent:
         arguments: Dict[str, Any],
         trace: Optional[TraceLog] = None,
     ) -> str:
-        """Execute a tool that was approved out-of-band (via the API)."""
-        trace = trace or TraceLog()
-        decision = RouteDecision(tool=action, arguments=arguments, strategy="approved")
-        response, _ = self._execute_tool(decision, trace)
-        return response
+        """Execute a tool approved out-of-band through the existing API."""
+        return self.engine.execute_approved(action, arguments, trace=trace)
 
-    # --- internals ----------------------------------------------------------
-    def _route(self, query, context, cost_tracker) -> RouteDecision:
+    def replay(
+        self,
+        trace_summary: Dict[str, Any],
+        *,
+        dry_run: bool = True,
+        run_id: str = "replay",
+    ) -> ReplayResult:
+        return self.engine.replay(trace_summary, dry_run=dry_run, run_id=run_id)
+
+    def stream_events(self, user_query: str, **kwargs: Any) -> Iterable[RunEvent]:
+        """Yield ordered events for the SSE facade without changing chat output."""
+        import uuid
+
+        cost_tracker = kwargs.pop("cost_tracker", None) or CostTracker()
+        trace = kwargs.pop("trace", None)
+        run_id = kwargs.pop("run_id", None) or uuid.uuid4().hex[:8]
+        yield from self.engine.stream_events(
+            user_query,
+            run_id=run_id,
+            trace=trace,
+            cost_tracker=cost_tracker,
+            **kwargs,
+        )
+
+    # Private compatibility helpers retained for existing integrations/tests.
+    def _route(self, query, context, cost_tracker):
+        router: Any = self.router
         try:
-            # LLMRouter accepts a cost_tracker; KeywordRouter does not.
-            return self.router.route(query, context, cost_tracker=cost_tracker)
+            return router.route(query, context, cost_tracker=cost_tracker)
         except TypeError:
-            return self.router.route(query, context)
+            return router.route(query, context)
 
     def _execute_tool(self, decision: RouteDecision, trace: TraceLog):
-        start = time.perf_counter()
-        try:
-            result = self.registry.call_tool(decision.tool, decision.arguments)
-            latency = (time.perf_counter() - start) * 1000.0
-            trace.add_tool_call(
-                decision.tool, decision.arguments, result, latency, status="ok"
-            )
-            return str(result), "completed"
-        except KeyError:
-            latency = (time.perf_counter() - start) * 1000.0
-            trace.add_tool_call(
-                decision.tool,
-                decision.arguments,
-                "tool not found",
-                latency,
-                status="error",
-            )
-            logger.error("Tool not found: {}", decision.tool)
-            return f"Error: Tool '{decision.tool}' not available.", "error"
-        except Exception as exc:  # noqa: BLE001 - surface as a structured error
-            latency = (time.perf_counter() - start) * 1000.0
-            trace.add_tool_call(
-                decision.tool,
-                decision.arguments,
-                f"error: {exc}",
-                latency,
-                status="error",
-            )
-            logger.error("Tool '{}' failed: {}", decision.tool, exc)
-            return f"Error executing '{decision.tool}': {exc}", "error"
-
-    def _generate_response(
-        self, query: str, context: List[dict], cost_tracker: CostTracker
-    ) -> str:
-        client = getattr(self.router, "llm_client", None)
-        if client is not None:
-            try:
-                result = client.generate(
-                    "gpt-4o-mini",
-                    "Follow the supplied conversation context, including system "
-                    f"instructions. Context: {json.dumps(context, ensure_ascii=False)}. "
-                    f"Respond to: {query}",
-                    mocked_response="I understand your request. Let me help with that.",
-                )
-                telemetry = result.get("telemetry", {})
-                cost_tracker.record_call(
-                    "gpt-4o-mini",
-                    int(telemetry.get("input_tokens", 0)),
-                    int(telemetry.get("output_tokens", 0)),
-                    float(telemetry.get("latency_ms", 0.0)),
-                )
-                return result["response"]
-            except Exception:  # noqa: BLE001 - fall through to canned reply
-                pass
-        return "I processed your request but no tool was matched."
-
-    def _finish(
-        self,
-        run_id,
-        query,
-        response,
-        status,
-        decision,
-        trace,
-        cost_tracker,
-        approval=None,
-    ) -> RunResult:
-        skill_context = None
-        if self.skill_session is not None:
-            skill_context = self.skill_session.report().to_dict()
-        return RunResult(
-            run_id=run_id,
-            query=query,
-            response=response,
-            status=status,
-            mode=self.mode,
-            route=decision.strategy if decision else None,
-            approval=approval,
-            trace=trace.summary(),
-            cost=cost_tracker.summary(),
-            skill_context=skill_context,
-        )
+        return self.engine._execute_tool(decision, trace)

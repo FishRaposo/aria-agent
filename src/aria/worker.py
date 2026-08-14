@@ -1,18 +1,22 @@
 """Celery worker with real agent domain tasks.
 
-Built via ``shared_core.tasks.create_celery_app`` and importable without a
+Built via ``aria.internal.vendor_core.tasks.create_celery_app`` and importable without a
 running broker (the broker URL is only contacted when a worker starts or a task
 is dispatched). Tasks run real agent work against the active stores (DB-backed
 when available, in-memory otherwise), mirroring the synchronous API so a run can
 be dispatched asynchronously and approval timeouts can be swept on a schedule.
 """
 
+import json
 import time
 from typing import Any, Dict, Optional
 
-from shared_core.tasks import create_celery_app
+from aria.internal.vendor_core.tasks import create_celery_app
 
 from .config import AppConfig
+from .internal.core.rate_limit import FixedWindowRateLimiter
+from .internal.core.retry import RetryPolicy
+from .internal.core.sweeper import ApprovalSweeper
 
 config = AppConfig()
 celery_app = create_celery_app(
@@ -32,6 +36,21 @@ def _build_agent(mode: str, session_id: str):
     from .routing import build_router
     from .tools import build_default_registry
 
+    try:
+        retry_config = json.loads(config.ARIA_TOOL_RETRY_POLICIES or "{}")
+    except (TypeError, json.JSONDecodeError):
+        retry_config = {}
+    retry_policies = {}
+    for tool, value in retry_config.items():
+        if isinstance(value, dict):
+            try:
+                retry_policies[tool] = RetryPolicy(
+                    max_attempts=int(value.get("max_attempts", 1)),
+                    backoff_seconds=float(value.get("backoff_seconds", 0.0)),
+                )
+            except (TypeError, ValueError):
+                continue
+
     db_module.check_db()
     task_store = db_module.build_task_store()
     approval_store = db_module.build_approval_store(
@@ -47,6 +66,19 @@ def _build_agent(mode: str, session_id: str):
         router=router,
         memory=get_memory(session_id),
         mode=mode,
+        planning_mode=config.ARIA_PLANNING_MODE,
+        safety_mode=config.ARIA_SAFETY_MODE,
+        retry_policies=retry_policies,
+        rate_limiter=(
+            FixedWindowRateLimiter(
+                limit=config.ARIA_RATE_LIMIT_PER_TOOL,
+                window_seconds=config.ARIA_RATE_LIMIT_WINDOW_SECONDS,
+                clock=time.time,
+            )
+            if config.ARIA_RATE_LIMIT_PER_TOOL > 0
+            else None
+        ),
+        session_id=session_id,
     )
     return agent, db_module.build_run_store(), approval_store
 
@@ -81,9 +113,8 @@ def run_agent_task(
 
 def _sweep_expired_approvals(approval_store) -> Dict[str, Any]:
     """Pure helper: count approvals that have timed out into ``expired``."""
-    approvals = approval_store.list()
-    expired = [a for a in approvals if a["status"] == "expired"]
-    return {"total": len(approvals), "expired": len(expired)}
+    result = ApprovalSweeper(approval_store).sweep()
+    return {"total": result["checked"], "expired": result["expired"]}
 
 
 @celery_app.task(name="aria.sweep_expired_approvals")

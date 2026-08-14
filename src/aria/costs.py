@@ -1,15 +1,15 @@
-"""ARIA per-run LLM cost tracking via shared_core.
+"""ARIA per-run LLM cost tracking via aria.internal.vendor_core.
 
-Wraps ``shared_core.llmmetrics.LLMMetrics`` (which defaults cost to
-``shared_core.pricing.calculate_cost``) so cost/token/latency aggregation matches
+Wraps ``aria.internal.vendor_core.llmmetrics.LLMMetrics`` (which defaults cost to
+``aria.internal.vendor_core.pricing.calculate_cost``) so cost/token/latency aggregation matches
 the rest of the portfolio exactly. Each routing/response LLM call the agent makes
 is recorded here and surfaced in the run's cost summary.
 """
 
 from typing import Any, Dict, Optional
 
-from shared_core.llmmetrics import LLMMetrics
-from shared_core.pricing import calculate_cost
+from aria.internal.vendor_core.llmmetrics import LLMMetrics
+from aria.internal.vendor_core.pricing import calculate_cost
 
 
 class CostTracker:
