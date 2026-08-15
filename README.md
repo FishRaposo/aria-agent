@@ -98,9 +98,25 @@ npx playwright install chromium
 npm run test:e2e -- --project=chromium
 ```
 
+### Verified snapshot — 2026-08-14
+
+| Surface | Fresh result |
+|---|---|
+| Python suite | 200 passed |
+| Focused progressive-disclosure skills | 12 passed (focused subset, not added to 200) |
+| Ruff | Check passed; 72 files format-clean |
+| Pyright | 0 errors |
+| Evidence | Generated and verified against the golden fixture |
+| Package | sdist/wheel built; vendored wheel contents verified |
+| Frontend | 31 Vitest tests, lint, and production build passed |
+| Browser smoke | Six Chromium tests discovered; local execution still requires the Playwright browser binary, which CI installs explicitly |
+
+On this Windows host the default global pytest temp directory was inaccessible;
+the full suite passed with `--basetemp=.pytest-temp/plan-run`. The local Playwright
+run is not claimed green because the browser binary was unavailable. The CI
+workflow installs Chromium explicitly before running the same six-test smoke suite.
+
 The dashboard is a read-only portfolio surface and keeps its existing routes.
-The Chromium smoke test is an optional local browser check; CI installs the
-browser explicitly.
 
 ## Boundaries
 

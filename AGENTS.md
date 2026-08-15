@@ -30,6 +30,12 @@ npx playwright install chromium
 npm run test:e2e -- --project=chromium
 ```
 
+The 2026-08-14 finalization snapshot is 200 passing Python tests, 12 passing
+focused skill tests (a separately executed subset), Ruff check plus 72
+format-clean files, and Pyright with 0 errors. Treat these as dated evidence,
+not permanent expected counts; update `README.md` and `docs/TESTS.md` when the
+suite changes.
+
 ## Architecture rules
 
 - `src/aria/internal/core/` owns execution contracts, planning, safety, retry,
