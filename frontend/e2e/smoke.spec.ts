@@ -20,7 +20,10 @@ test("runs view shows demo data and charts", async ({ page }) => {
 
 test("run detail opens a trace timeline", async ({ page }) => {
   await page.goto("/runs");
-  await page.getByTestId("run-list").locator("a").first().click();
+  const firstRunLink = page.getByTestId("run-list").locator("a").first();
+  await expect(firstRunLink).toHaveAttribute("href", /^\/runs\/[^/]+$/);
+  await firstRunLink.click();
+  await expect(page).toHaveURL(/\/runs\/[^/]+$/, { timeout: 30_000 });
   await expect(page.getByTestId("trace-timeline")).toBeVisible();
 });
 
