@@ -17,7 +17,6 @@ progressive-disclosure command passed 12 tests; it is a separately executed
 subset and is not added to the 200-test count. Ruff check passed, Ruff reported
 all 72 scoped files format-clean, and Pyright reported 0 errors.
 
-The frontend passed 31 Vitest tests, ESLint, and a production build. Playwright
-discovered six Chromium smoke tests. The browser binary was unavailable on the
-local Windows verification host, so local browser execution is not claimed
-green; CI installs Chromium explicitly before running the suite.
+The frontend passed 31 Vitest tests, ESLint, and a production build. On
+2026-08-15, all six Playwright smoke tests passed locally in Chromium. CI
+installs Chromium explicitly before running the same suite.

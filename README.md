@@ -109,12 +109,12 @@ npm run test:e2e -- --project=chromium
 | Evidence | Generated and verified against the golden fixture |
 | Package | sdist/wheel built; vendored wheel contents verified |
 | Frontend | 31 Vitest tests, lint, and production build passed |
-| Browser smoke | Six Chromium tests discovered; local execution still requires the Playwright browser binary, which CI installs explicitly |
+| Browser smoke | 6 passed locally in Chromium (reverified 2026-08-15) |
 
 On this Windows host the default global pytest temp directory was inaccessible;
-the full suite passed with `--basetemp=.pytest-temp/plan-run`. The local Playwright
-run is not claimed green because the browser binary was unavailable. The CI
-workflow installs Chromium explicitly before running the same six-test smoke suite.
+the full suite passed with `--basetemp=.pytest-temp/plan-run`. The Playwright
+Chromium smoke suite was re-run locally on 2026-08-15 with all six tests passing.
+The CI workflow installs Chromium explicitly before running the same suite.
 
 The dashboard is a read-only portfolio surface and keeps its existing routes.
 
