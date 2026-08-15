@@ -20,6 +20,8 @@ venv/
 
 # Project files / caches
 .pytest_cache/
+.pytest-temp/
+.superpowers/
 .mypy_cache/
 .ruff_cache/
 .pyright/
