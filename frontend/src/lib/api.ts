@@ -1,11 +1,11 @@
 // Typed API client for the ARIA agent framework.
 //
-// Live-first with graceful demo-mode fallback:
-//  - Each call tries the real backend at NEXT_PUBLIC_API_URL.
-//  - A *network* failure (backend down / unreachable) falls back to bundled
-//    mock data and flags `demo: true` so the UI can show a "Demo mode" badge.
+// Live-first with optional forced demo mode and graceful fallback:
+//  - When NEXT_PUBLIC_DEMO_MODE=true, every call returns bundled mock data
+//    immediately with demoForced=true (no network).
+//  - Otherwise each call tries the real backend at NEXT_PUBLIC_API_URL.
+//  - A *network* failure falls back to mock data with demoForced=false.
 //  - A real HTTP 4xx/5xx is surfaced as an ApiError (never masked).
-
 import type {
   Approval,
   ApprovalDecisionResponse,
@@ -16,6 +16,7 @@ import type {
   HealthResponse,
   MemoryMessage,
   RunListResponse,
+  SkillsSnapshot,
   ToolListResponse,
   ToolSpec,
 } from "@/types";
@@ -23,9 +24,12 @@ import {
   MOCK_APPROVALS,
   MOCK_MEMORY,
   MOCK_RUNS,
+  MOCK_SKILLS,
   MOCK_TOOLS,
   mockChat,
 } from "@/lib/mockData";
+
+export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -44,15 +48,28 @@ export class ApiError extends Error {
 export interface ApiResult<T> {
   data: T;
   demo: boolean;
+  /** True when NEXT_PUBLIC_DEMO_MODE forces bundled data (not an outage fallback). */
+  demoForced?: boolean;
   /** When in demo mode, the underlying reason (e.g. "backend unreachable"). */
   demoReason?: string;
 }
 
+const FORCED_DEMO_REASON = "portfolio sample data";
+const NETWORK_REASON = "backend unreachable — showing bundled demo data";
+
 function live<T>(data: T): ApiResult<T> {
   return { data, demo: false };
 }
-function demo<T>(data: T, reason: string): ApiResult<T> {
-  return { data, demo: true, demoReason: reason };
+function demo<T>(data: T, reason: string, forced = false): ApiResult<T> {
+  return {
+    data,
+    demo: true,
+    demoForced: forced,
+    demoReason: forced ? FORCED_DEMO_REASON : reason,
+  };
+}
+function forcedDemo<T>(data: T): ApiResult<T> {
+  return demo(data, FORCED_DEMO_REASON, true);
 }
 
 async function request<T>(
@@ -86,16 +103,22 @@ async function request<T>(
   return { ok: true, data };
 }
 
-const NETWORK_REASON = "backend unreachable — showing bundled demo data";
-
 class AriaApi {
+  private mockApprovals = [...MOCK_APPROVALS];
+
   async listRuns(limit = 50): Promise<ApiResult<AgentRun[]>> {
+    if (DEMO_MODE) return forcedDemo(MOCK_RUNS.slice(0, limit));
     const res = await request<RunListResponse>(`/agent/runs?limit=${limit}`);
     if (res.ok) return live(res.data.runs);
     return demo(MOCK_RUNS, NETWORK_REASON);
   }
 
   async getRun(runId: string): Promise<ApiResult<AgentRun>> {
+    if (DEMO_MODE) {
+      const found = MOCK_RUNS.find((r) => r.id === runId);
+      if (!found) throw new ApiError(`Run '${runId}' not found`, 404);
+      return forcedDemo(found);
+    }
     const res = await request<AgentRun>(`/agent/runs/${runId}`);
     if (res.ok) return live(res.data);
     const found = MOCK_RUNS.find((r) => r.id === runId);
@@ -104,6 +127,9 @@ class AriaApi {
   }
 
   async chat(req: ChatRequest): Promise<ApiResult<ChatResponse>> {
+    if (DEMO_MODE) {
+      return forcedDemo(mockChat(req.message, req.mode || "free_running"));
+    }
     const res = await request<ChatResponse>(`/agent/chat`, {
       method: "POST",
       body: JSON.stringify(req),
@@ -114,12 +140,18 @@ class AriaApi {
   }
 
   async listTools(): Promise<ApiResult<ToolSpec[]>> {
+    if (DEMO_MODE) return forcedDemo(MOCK_TOOLS);
     const res = await request<ToolListResponse>(`/tools`);
     if (res.ok) return live(res.data.tools);
     return demo(MOCK_TOOLS, NETWORK_REASON);
   }
 
   async getTool(name: string): Promise<ApiResult<ToolSpec>> {
+    if (DEMO_MODE) {
+      const found = MOCK_TOOLS.find((t) => t.name === name);
+      if (!found) throw new ApiError(`Tool '${name}' not found`, 404);
+      return forcedDemo(found);
+    }
     const res = await request<ToolSpec>(`/tools/${name}`);
     if (res.ok) return live(res.data);
     const found = MOCK_TOOLS.find((t) => t.name === name);
@@ -128,12 +160,18 @@ class AriaApi {
   }
 
   async listApprovals(status?: string): Promise<ApiResult<Approval[]>> {
+    if (DEMO_MODE) {
+      const filtered = status
+        ? this.mockApprovals.filter((a) => a.status === status)
+        : this.mockApprovals;
+      return forcedDemo(filtered);
+    }
     const qs = status ? `?status=${encodeURIComponent(status)}` : "";
     const res = await request<ApprovalListResponse>(`/approvals${qs}`);
     if (res.ok) return live(res.data.approvals);
     const filtered = status
-      ? MOCK_APPROVALS.filter((a) => a.status === status)
-      : MOCK_APPROVALS;
+      ? this.mockApprovals.filter((a) => a.status === status)
+      : this.mockApprovals;
     return demo(filtered, NETWORK_REASON);
   }
 
@@ -141,6 +179,9 @@ class AriaApi {
     id: string,
     reason?: string
   ): Promise<ApiResult<ApprovalDecisionResponse>> {
+    if (DEMO_MODE) {
+      return forcedDemo(this.mockDecision(id, true, reason));
+    }
     const res = await request<ApprovalDecisionResponse>(
       `/approvals/${id}/approve`,
       { method: "POST", body: JSON.stringify({ reason: reason ?? null }) }
@@ -153,6 +194,9 @@ class AriaApi {
     id: string,
     reason?: string
   ): Promise<ApiResult<ApprovalDecisionResponse>> {
+    if (DEMO_MODE) {
+      return forcedDemo(this.mockDecision(id, false, reason));
+    }
     const res = await request<ApprovalDecisionResponse>(
       `/approvals/${id}/reject`,
       { method: "POST", body: JSON.stringify({ reason: reason ?? null }) }
@@ -161,12 +205,20 @@ class AriaApi {
     return demo(this.mockDecision(id, false, reason), "demo — not persisted");
   }
 
+  async getSkills(): Promise<ApiResult<SkillsSnapshot>> {
+    if (DEMO_MODE) return forcedDemo(MOCK_SKILLS);
+    const res = await request<SkillsSnapshot>(`/skills`);
+    if (res.ok) return live(res.data);
+    return demo(MOCK_SKILLS, NETWORK_REASON);
+  }
+
   private mockDecision(
     id: string,
     approved: boolean,
     reason?: string
   ): ApprovalDecisionResponse {
-    const base = MOCK_APPROVALS.find((a) => a.id === id) ?? MOCK_APPROVALS[0];
+    const base =
+      this.mockApprovals.find((a) => a.id === id) ?? this.mockApprovals[0];
     const decided: Approval = {
       ...base,
       id,
@@ -175,6 +227,9 @@ class AriaApi {
       decided_at: Math.floor(Date.now() / 1000),
       seconds_remaining: 0,
     };
+    this.mockApprovals = this.mockApprovals.map((a) =>
+      a.id === id ? decided : a
+    );
     return {
       approval: decided,
       ...(approved
@@ -187,6 +242,9 @@ class AriaApi {
   async getMemory(
     sessionId = "default"
   ): Promise<ApiResult<MemoryMessage[]>> {
+    if (DEMO_MODE) {
+      return forcedDemo(MOCK_MEMORY[sessionId] ?? MOCK_MEMORY.default);
+    }
     // The backend persists memory but exposes no read route, so we derive it
     // from recent runs when live, and fall back to bundled memory in demo mode.
     const res = await request<RunListResponse>(`/agent/runs?limit=50`);
@@ -206,6 +264,13 @@ class AriaApi {
   }
 
   async health(): Promise<ApiResult<HealthResponse>> {
+    if (DEMO_MODE) {
+      return forcedDemo({
+        status: "demo",
+        service: "aria-agent-framework",
+        dependencies: { database: "offline", redis: "offline" },
+      });
+    }
     const res = await request<HealthResponse>(`/health`);
     if (res.ok) return live(res.data);
     return demo(

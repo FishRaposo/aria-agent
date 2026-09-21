@@ -50,6 +50,7 @@ export default function RunDetailView({ runId }: { runId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
@@ -59,6 +60,7 @@ export default function RunDetailView({ runId }: { runId: string }) {
       const res = await api.getRun(runId);
       setRun(res.data);
       setDemo(res.demo);
+      setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
       setError(
@@ -96,6 +98,7 @@ export default function RunDetailView({ runId }: { runId: string }) {
           <PageHeader
             title={`Run ${run.id}`}
             demo={demo}
+            demoForced={demoForced}
             demoReason={demoReason}
             actions={
               <div className="flex items-center gap-2">

@@ -164,3 +164,42 @@ export interface MemoryMessage {
   role: string;
   content: string;
 }
+
+export type SkillScope = "builtin" | "user" | "project";
+
+/** Level-one skill discovery record (metadata only). */
+export interface SkillCatalogEntry {
+  name: string;
+  description: string;
+  scope: SkillScope;
+  source: string;
+  activation_hints?: string;
+}
+
+/** A skill whose instructions entered the run context after explicit activation. */
+export interface ActivatedSkill {
+  name: string;
+  scope: SkillScope;
+  source: string;
+  run_id: string;
+  loaded: boolean;
+  instructions: string;
+  activation_command?: string;
+}
+
+/** Snapshot of progressive-disclosure skill state for the console. */
+export interface SkillsSnapshot {
+  catalog: SkillCatalogEntry[];
+  activated: ActivatedSkill[];
+  context_report: {
+    visible_skill_count: number;
+    eager_hints_used: boolean;
+    loaded_instruction_bodies: Array<{
+      name: string;
+      scope: string;
+      source: string;
+    }>;
+    provider: string;
+    source_scopes: SkillScope[];
+  };
+}

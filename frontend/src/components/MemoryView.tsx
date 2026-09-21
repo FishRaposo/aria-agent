@@ -13,6 +13,7 @@ export default function MemoryView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
   const [session, setSession] = useState("default");
 
@@ -23,6 +24,7 @@ export default function MemoryView() {
       const res = await api.getMemory(session);
       setMessages(res.data);
       setDemo(res.demo);
+      setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
       setError(
@@ -49,6 +51,7 @@ export default function MemoryView() {
         title="Memory inspector"
         description="The conversation memory the agent carries across turns within a session. Built from persisted run history."
         demo={demo}
+        demoForced={demoForced}
         demoReason={demoReason}
         actions={
           <div className="flex items-center gap-2">

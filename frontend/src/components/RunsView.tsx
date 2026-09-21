@@ -47,6 +47,7 @@ export default function RunsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
@@ -56,6 +57,7 @@ export default function RunsView() {
       const res = await api.listRuns();
       setRuns(res.data);
       setDemo(res.demo);
+      setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
       setError(
@@ -80,6 +82,7 @@ export default function RunsView() {
         title="Agent runs"
         description="Recent end-to-end runs with trace, status, route, and cost. Select a run to open its trace timeline."
         demo={demo}
+        demoForced={demoForced}
         demoReason={demoReason}
         actions={
           <button onClick={load} className="btn-secondary" disabled={loading}>

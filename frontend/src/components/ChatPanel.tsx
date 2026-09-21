@@ -28,6 +28,7 @@ interface Turn {
   /** Set when this turn errored (real HTTP error). */
   error?: string;
   demo?: boolean;
+  demoForced?: boolean;
   demoReason?: string;
 }
 
@@ -64,6 +65,7 @@ export default function ChatPanel() {
                 response: res.data,
                 pending: false,
                 demo: res.demo,
+                demoForced: res.demoForced,
                 demoReason: res.demoReason,
               }
             : t
@@ -233,7 +235,12 @@ function TurnView({ turn }: { turn: Turn }) {
                     route: {res.route}
                   </span>
                 )}
-                {turn.demo && <DemoBadge reason={turn.demoReason} />}
+                {turn.demo && (
+                  <DemoBadge
+                    reason={turn.demoReason}
+                    forced={turn.demoForced}
+                  />
+                )}
               </div>
 
               {toolCalls(res.trace.entries).map((tc, i) => (

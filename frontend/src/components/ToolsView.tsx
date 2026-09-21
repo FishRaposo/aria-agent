@@ -101,6 +101,7 @@ export default function ToolsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
@@ -110,6 +111,7 @@ export default function ToolsView() {
       const res = await api.listTools();
       setTools(res.data);
       setDemo(res.demo);
+      setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
       setError(
@@ -137,6 +139,7 @@ export default function ToolsView() {
         title="Tool registry"
         description="Tools the agent can call, with JSON schemas and permission levels. Risky tools route through the approval queue in approval-gated mode."
         demo={demo}
+        demoForced={demoForced}
         demoReason={demoReason}
         actions={
           <button onClick={load} className="btn-secondary" disabled={loading}>

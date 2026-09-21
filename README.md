@@ -118,6 +118,34 @@ The CI workflow installs Chromium explicitly before running the same suite.
 
 The dashboard is a read-only portfolio surface and keeps its existing routes.
 
+## Portfolio UI demo
+
+The frontend ships a **forced demo mode** for portfolio walkthroughs — no backend,
+credentials, or network required. The thesis: the harness bounds the model; skills
+disclose only when activated.
+
+```bash
+cd frontend
+npm ci
+npm run demo:ui
+```
+
+Open `http://localhost:3000`. Every view reads bundled sample data immediately
+(`NEXT_PUBLIC_DEMO_MODE=true`). A quiet **Sample data** badge marks forced mode;
+when the backend is simply unreachable, the console falls back with a **Backend
+offline — demo fallback** warning instead.
+
+| View | What to inspect |
+|---|---|
+| Runs | Safe calculator trace, blocked injection run, pending approval run |
+| Skills | Activated calculator + task-creator bodies vs closed catalog entries |
+| Approvals | Approve/reject updates local state — labelled **not persisted** |
+| Tools | Safe vs approval-gated registry |
+| Chat | Drive the reason-and-act loop locally |
+
+To run against a live API instead, start `uvicorn aria.main:app --reload --app-dir src`
+and use `npm run dev` with `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+
 ## Boundaries
 
 The repository deliberately does not require hosted/team tenancy, notification

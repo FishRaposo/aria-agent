@@ -23,6 +23,7 @@ export default function ApprovalsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
+  const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
   const [filter, setFilter] = useState("");
   const [acting, setActing] = useState<Record<string, boolean>>({});
@@ -35,6 +36,7 @@ export default function ApprovalsView() {
       const res = await api.listApprovals(filter || undefined);
       setApprovals(res.data);
       setDemo(res.demo);
+      setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
       setError(
@@ -87,6 +89,7 @@ export default function ApprovalsView() {
         title="Approval queue"
         description="Human-in-the-loop gate for risky write actions. Approve to execute the tool, or reject to cancel."
         demo={demo}
+        demoForced={demoForced}
         demoReason={demoReason}
         actions={
           <button onClick={load} className="btn-secondary" disabled={loading}>

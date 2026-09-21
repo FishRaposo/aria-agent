@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import {
   Activity,
+  BookOpen,
   CheckSquare,
   Database,
   MessageSquare,
@@ -14,6 +15,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/runs", label: "Runs", icon: Activity },
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/skills", label: "Skills", icon: BookOpen },
   { href: "/tools", label: "Tools", icon: Wrench },
   { href: "/approvals", label: "Approvals", icon: CheckSquare },
   { href: "/memory", label: "Memory", icon: Database },
