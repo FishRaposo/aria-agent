@@ -131,17 +131,14 @@ npm run demo:ui
 ```
 
 Open `http://localhost:3000`. Every view reads bundled sample data immediately
-(`NEXT_PUBLIC_DEMO_MODE=true`). A quiet **Sample data** badge marks forced mode;
-when the backend is simply unreachable, the console falls back with a **Backend
-offline — demo fallback** warning instead.
+(`NEXT_PUBLIC_DEMO_MODE=true`). A quiet **Sample data** badge marks forced mode.
 
-| View | What to inspect |
-|---|---|
-| Runs | Safe calculator trace, blocked injection run, pending approval run |
-| Skills | Activated calculator + task-creator bodies vs closed catalog entries |
-| Approvals | Approve/reject updates local state — labelled **not persisted** |
-| Tools | Safe vs approval-gated registry |
-| Chat | Drive the reason-and-act loop locally |
+**Click path:**
+
+1. **Runs** → `inj3ct10n` — prompt injection blocked by deterministic safety before any tool runs.
+2. **Runs** → `a1b2c3d4` — safe calculator tool call with ordered execution trace.
+3. **Approvals** — pending email draft; approve or reject updates local state (**not persisted**).
+4. **Skills** — calculator skill body activated on the safe run; other catalog entries stay closed.
 
 To run against a live API instead, start `uvicorn aria.main:app --reload --app-dir src`
 and use `npm run dev` with `NEXT_PUBLIC_API_URL=http://localhost:8000`.
