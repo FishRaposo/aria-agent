@@ -82,8 +82,13 @@ infrastructure, and real provider credentials explicitly deferred.
 
 ## Git discipline
 
-Before edits, pull/rebase the current branch. Commit ARIA, the public site, and
-hub receipt changes separately. Before handoff run `git diff --check`, the
-forbidden scan, the receipt checker, `node check-hub.mjs`, and `node sync-repos.mjs`.
-Do not remove the queue copy until the receipt is green and the owner has the
-manual visual/positioning-QA handoff.
+Work only inside this repository (`aria-agent`). Before edits, pull/rebase the
+current branch. Before handoff run `git diff --check`, `make forbidden`,
+`make evidence` (or `python scripts/verify_portfolio_evidence.py`), and the
+Python/frontend checks listed in Canonical commands (`pytest`, `ruff`, `pyright`,
+and the frontend npm targets when UI changes).
+
+Do not require career-hub `check-hub.mjs`, `sync-repos.mjs`, or a hub queue-copy
+workflow — those tools live outside this repo. Career-hub may maintain a local
+clone under Portfolio Projects/ for hub coordination only; that copy is not part
+of ARIA's development or release process.
