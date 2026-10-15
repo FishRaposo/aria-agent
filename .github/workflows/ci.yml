@@ -14,9 +14,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-      - name: Install the declared project extra
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install the dev extra from uv.lock
+        # --locked fails if uv.lock no longer matches pyproject.toml.
+        run: |
+          uv sync --locked --extra dev --python 3.11
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
       - name: Test
         run: pytest -q
       - name: Focused skills test
@@ -34,10 +40,14 @@ jobs:
       - name: Wheel contents
         run: make package
       - name: Isolated wheel import
+        # Runtime dependencies come from uv.lock (hash-checked); the wheel adds none.
         run: |
+          uv export --locked --quiet --no-emit-project --format requirements-txt -o /tmp/aria-runtime.txt
           python -m venv /tmp/aria-wheel
           /tmp/aria-wheel/bin/python -m pip install --upgrade pip
-          /tmp/aria-wheel/bin/python -m pip install dist/*.whl
+          /tmp/aria-wheel/bin/python -m pip install --require-hashes -r /tmp/aria-runtime.txt
+          /tmp/aria-wheel/bin/python -m pip install --no-deps dist/*.whl
+          /tmp/aria-wheel/bin/python -m pip check
           /tmp/aria-wheel/bin/python -c "import aria, aria.main, aria.config, aria.db, aria.tracing, aria.internal.vendor_core.pricing"
 
   frontend:

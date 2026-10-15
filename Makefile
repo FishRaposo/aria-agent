@@ -1,7 +1,7 @@
 .PHONY: install dev test lint format typecheck evidence verify-evidence package wheel-check forbidden frontend-install frontend-test frontend-lint frontend-build docker-up docker-down migrate worker demo clean help
 
-install: ## Install ARIA and its declared development tools
-	python -m pip install -e ".[dev]"
+install: ## Install ARIA and its development tools from uv.lock
+	uv sync --locked --extra dev
 
 dev: ## Start the FastAPI development server
 	uvicorn aria.main:app --reload --app-dir src --host 0.0.0.0 --port 8000
