@@ -1,5 +1,24 @@
 # Test types
 
+## Current portfolio milestone — 2026-10-22–23
+
+The full local Python suite has **302 passed, 1 skipped**. Focused skills pass12
+tests as a separately executed subset. Ruff check/format (85 files), Pyright,
+canonical/strict evidence, package contents and isolated wheel imports pass.
+Native protocol/fixture checks are31 passed/1 host skip; there were no native
+CLI/model trials. The skipped case requires real Windows symlink permission.
+
+Frontend: **43 unit tests**, clean lint and production build; **13 sample** and
+**2 connected outage** Chromium tests. Independent screenshot inspection covers
+390×844, 768×1024 and1440×900. A healthy connected browser probe exercises actual
+strict API/SQLite/task creation, completed approval and duplicate409, confirming
+one task in SQL. Sample inspection sees zero backend/external requests/errors.
+
+The dated [verification record](portfolio-verification.md) contains commands,
+red/green findings, screenshots, exact scope and host/CI limitations. It supersedes
+the historical snapshot below for this branch. No native-model score or fresh
+hosted CI result is inferred from local protocol/UI checks.
+
 - Unit tests cover tools, routing, stores, approvals, costs, traces, safety,
   retries, rate limits, memory ranking, contracts, and evidence serialization.
 - Integration tests cover the agent loop, API wire compatibility, SSE/replay,

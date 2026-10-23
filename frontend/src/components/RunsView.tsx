@@ -9,6 +9,8 @@ import PageHeader from "@/components/PageHeader";
 import RunCharts from "@/components/RunCharts";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode } from "@/lib/demo-scenarios";
 import { formatCost, formatMs, timeAgo } from "@/lib/format";
 import type { AgentRun, CostSummary } from "@/types";
 
@@ -44,6 +46,7 @@ function aggregate(runs: AgentRun[]): CostSummary {
 
 export default function RunsView() {
   const [runs, setRuns] = useState<AgentRun[]>([]);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -51,7 +54,7 @@ export default function RunsView() {
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
       const res = await api.listRuns();
@@ -74,7 +77,7 @@ export default function RunsView() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, revision]);
 
   return (
     <div>
@@ -104,8 +107,7 @@ export default function RunsView() {
         />
       ) : (
         <div className="space-y-8">
-          <CostSummaryCard cost={aggregate(runs)} />
-          <RunCharts runs={runs} />
+          {demo && <div className="outcome-panel"><p className="eyebrow text-brand-300">THREE REQUESTS. THREE OUTCOMES.</p><h2 className="mt-2">Follow a request to its execution boundary.</h2><p className="mt-2 text-sm text-ink-300">A calculation completes. A draft needs your review. An unauthorized send is denied.</p></div>}
 
           <div className="space-y-3" data-testid="run-list">
             {runs.map((run) => (
@@ -138,13 +140,15 @@ export default function RunsView() {
                     {formatMs(run.trace?.duration_ms)}
                   </div>
                   <div className="mt-1 text-xs text-ink-600">
-                    {timeAgo(run.created_at)}
+                    {demo ? "Fixture · fixed time" : timeAgo(run.created_at)}
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 shrink-0 text-ink-600 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
               </Link>
             ))}
           </div>
+          <p className="text-xs text-ink-400">{demo ? "Illustrative fixture metrics. No model calls or charges in this preview." : "Reported backend metrics."}</p>
+          <CostSummaryCard cost={aggregate(runs)} /><RunCharts runs={runs} />
         </div>
       )}
     </div>

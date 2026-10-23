@@ -141,9 +141,14 @@ class AriaAgent:
         action: str,
         arguments: Dict[str, Any],
         trace: Optional[TraceLog] = None,
+        *,
+        approval_id: Optional[str] = None,
+        run_id: Optional[str] = None,
     ) -> str:
         """Execute a tool approved out-of-band through the existing API."""
-        return self.engine.execute_approved(action, arguments, trace=trace)
+        return self.engine.execute_approved(
+            action, arguments, trace=trace, approval_id=approval_id, run_id=run_id
+        )
 
     def replay(
         self,

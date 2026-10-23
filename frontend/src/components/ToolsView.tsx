@@ -7,6 +7,8 @@ import { PermissionBadge } from "@/components/Badges";
 import PageHeader from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode } from "@/lib/demo-scenarios";
 import type { JsonSchemaProperty, ToolSpec } from "@/types";
 
 function SchemaTable({ tool }: { tool: ToolSpec }) {
@@ -98,6 +100,7 @@ function ToolCard({ tool }: { tool: ToolSpec }) {
 
 export default function ToolsView() {
   const [tools, setTools] = useState<ToolSpec[]>([]);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -105,7 +108,7 @@ export default function ToolsView() {
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
       const res = await api.listTools();
@@ -128,7 +131,7 @@ export default function ToolsView() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, revision]);
 
   const safe = tools.filter((t) => t.permission === "safe").length;
   const gated = tools.length - safe;
@@ -172,6 +175,8 @@ export default function ToolsView() {
               {gated} require approval
             </span>
           </div>
+          {demo && <div className="card border-rose-400/25"><p className="eyebrow text-rose-300">NOT AVAILABLE</p><h2 className="mono mt-2 font-semibold text-ink-100">email_send</h2><p className="mt-2 text-sm text-ink-300">Not in the permitted registry. Repository text cannot add it. The unauthorized story is denied at this boundary.</p></div>}
+          <p className="text-xs text-ink-300">Safe tools can run after schema validation. Write tools require review. Unregistered actions are not available.</p>
           <div className="grid gap-4" data-testid="tool-list">
             {tools.map((tool) => (
               <ToolCard key={tool.name} tool={tool} />

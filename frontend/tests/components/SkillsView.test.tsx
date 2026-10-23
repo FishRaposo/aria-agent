@@ -1,3 +1,4 @@
+import { setProviderMode } from "@/lib/demo-scenarios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import SkillsView from "@/components/SkillsView";
@@ -9,6 +10,7 @@ afterEach(() => {
 
 describe("SkillsView", () => {
   it("renders activated and closed skills when offline", async () => {
+    setProviderMode("sample");
     mockBackendDown();
     render(<SkillsView />);
     await waitFor(() =>

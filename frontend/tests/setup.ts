@@ -17,3 +17,8 @@ Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
   configurable: true,
   value: 400,
 });
+// Recharts measures getBoundingClientRect rather than offsetWidth.
+Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+  configurable: true,
+  value() { return { x: 0, y: 0, width: 800, height: 400, top: 0, left: 0, right: 800, bottom: 400, toJSON() { return {}; } }; },
+});

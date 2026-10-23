@@ -1,8 +1,8 @@
+import { setProviderMode } from "@/lib/demo-scenarios";
 import { vi } from "vitest";
 
 /**
- * Make global.fetch reject like a down backend so the api client's
- * demo-mode fallback engages. Returns the spy for assertions.
+ * Make fetch reject. The provider selection remains explicit in each test.
  */
 export function mockBackendDown() {
   const spy = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
@@ -15,6 +15,7 @@ export function mockBackendDown() {
  * surface instead of falling back to mock data.
  */
 export function mockHttpError(status = 500, detail = "Internal Server Error") {
+  setProviderMode("connected");
   const spy = vi.fn().mockResolvedValue({
     ok: false,
     status,
@@ -27,6 +28,7 @@ export function mockHttpError(status = 500, detail = "Internal Server Error") {
 
 /** Make global.fetch return a successful JSON payload. */
 export function mockHttpOk(payload: unknown) {
+  setProviderMode("connected");
   const spy = vi.fn().mockResolvedValue({
     ok: true,
     status: 200,

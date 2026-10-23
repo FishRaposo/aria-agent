@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import DemoShell from "@/components/DemoShell";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Nav from "@/components/Nav";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+
 
 export const metadata: Metadata = {
   title: "ARIA — Agent Control Console",
@@ -18,12 +18,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en">
       <body className="min-h-screen bg-ink-950 text-ink-100 antialiased">
-        <Nav />
-        <main className="mx-auto max-w-7xl px-6 py-8">
+        <a href="#main-content" className="skip-link">Skip to content</a><Nav />
+        <DemoShell><main id="main-content" className="mx-auto max-w-7xl px-6 py-8">
           <ErrorBoundary>{children}</ErrorBoundary>
-        </main>
+        </main></DemoShell>
       </body>
     </html>
   );

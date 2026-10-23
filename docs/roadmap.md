@@ -14,6 +14,15 @@
 
 ## Deferred product directions
 
+- Actual native/model baseline/configured trials: runner delivered, runtime
+  absent. No quality-improvement claim until authorized measured trials exist.
+- Hosted PostgreSQL/provider validation and fresh Python3.11/Node20 CI for this
+  milestone. Local verification uses a separate Python3.12 environment.
+
+The portfolio milestone adds single-use execution claims, strict boundary
+regressions, the self-contained native setup fixture and visual recruiter tour.
+See [verification](portfolio-verification.md) for measured completion/limits.
+
 - Hosted/team tenancy and workspace workflows.
 - External notification/webhook delivery and hosted scheduling.
 - OTLP protobuf/gRPC and hosted vector services.

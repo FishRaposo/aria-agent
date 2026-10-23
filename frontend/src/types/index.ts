@@ -77,6 +77,10 @@ export interface Approval {
   expires_at: number;
   decided_at: number | null;
   seconds_remaining: number;
+  binding_hash?: string | null;
+  execution_status?: "claimed" | "completed" | "failed" | null;
+  execution_claimed_at?: number | null;
+  execution_completed_at?: number | null;
 }
 
 /** A persisted agent run (run_store.save payload / get_run response). */

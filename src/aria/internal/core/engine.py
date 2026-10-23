@@ -6,10 +6,12 @@ import json
 import re
 import time
 import uuid
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, cast
 
 from loguru import logger
+from pydantic import ValidationError
 
 from ...approvals import ApprovalGate
 from ...routing import RouteDecision
@@ -35,6 +37,10 @@ class EngineOutcome:
     trace: Dict[str, Any]
     cost: Dict[str, Any]
     skill_context: Optional[Dict[str, Any]]
+
+
+class ApprovalExecutionDenied(PermissionError):
+    """A tool invocation lacks a valid, unused approval claim."""
 
 
 class AgentEngine:
@@ -72,6 +78,22 @@ class AgentEngine:
         self.retry_policies = retry_policies or {}
         self.rate_limiter = rate_limiter
         self.session_id = session_id
+
+    @property
+    def strict_profile(self) -> bool:
+        return self.mode == "approval_gated" and self.safety.policy == "block"
+
+    def _validate_boundary(self, action: str, arguments: Dict[str, Any]) -> None:
+        """Validate before review/claim without invoking the registered function."""
+        if action not in self.registry.tools:
+            raise ApprovalExecutionDenied(f"Tool '{action}' not available")
+        schema = self.registry.schemas[action]
+        try:
+            schema.model_validate(arguments, strict=True)
+        except ValidationError as exc:
+            raise ApprovalExecutionDenied(
+                f"Invalid arguments for '{action}': {exc}"
+            ) from exc
 
     def run_structured(
         self,
@@ -224,6 +246,29 @@ class AgentEngine:
                 requires_approval = self.registry.requires_approval(tool_name)
             except KeyError:
                 requires_approval = False
+            if self.strict_profile:
+                try:
+                    self._validate_boundary(tool_name, decision.arguments)
+                    if requires_approval and (
+                        not self.approval_gate.enabled
+                        or self.approval_gate.mode != "approval_gated"
+                    ):
+                        raise ApprovalExecutionDenied(
+                            "Strict profile requires an enabled approval gate"
+                        )
+                except ApprovalExecutionDenied as exc:
+                    trace.add_decision("execution_denied", str(exc))
+                    self._emit(RunEventType.ERROR, {"reason": str(exc)})
+                    self._emit(RunEventType.COMPLETE, {"status": "blocked"})
+                    return self._finish(
+                        user_query,
+                        "blocked",
+                        first_decision,
+                        trace,
+                        cost_tracker,
+                        f"Blocked by execution boundary: {exc}.",
+                        None,
+                    )
             gate = self.approval_gate.evaluate(
                 tool_name,
                 decision.arguments,
@@ -296,11 +341,52 @@ class AgentEngine:
         arguments: Dict[str, Any],
         *,
         trace: Optional[TraceLog] = None,
+        approval_id: Optional[str] = None,
+        run_id: Optional[str] = None,
     ) -> str:
         trace = trace or TraceLog()
-        return self._execute_tool(
-            RouteDecision(tool=action, arguments=arguments, strategy="approved"), trace
-        )[0]
+        # Preserve the historical direct API outside the strict profile. HTTP
+        # always supplies an identity and therefore always consumes a claim.
+        arguments = deepcopy(arguments)
+        token = None
+        if self.strict_profile or approval_id is not None:
+            try:
+                if self.strict_profile:
+                    self._validate_boundary(action, arguments)
+                if approval_id is None or (self.strict_profile and run_id is None):
+                    raise ApprovalExecutionDenied(
+                        "A bound approval and originating run are required"
+                    )
+                assessment = self.safety.assess("", arguments=arguments)
+                if assessment.action == "block":
+                    raise ApprovalExecutionDenied(assessment.reason)
+                token = self.approval_gate.store.claim_execution(
+                    approval_id, action, arguments, run_id
+                )
+                if token is None:
+                    raise ApprovalExecutionDenied(
+                        "Approval is expired, rejected, unbound, altered, or already claimed"
+                    )
+            except ApprovalExecutionDenied as exc:
+                trace.add_decision(
+                    "execution_denied", str(exc), {"approval_id": approval_id}
+                )
+                raise
+            trace.add_decision(
+                "execution_claimed",
+                "Single-use approval claimed",
+                {"approval_id": approval_id},
+            )
+        result, status = self._execute_tool(
+            RouteDecision(tool=action, arguments=arguments, strategy="approved"),
+            trace,
+            approval_claimed=token is not None,
+        )
+        if token is not None and approval_id is not None:
+            self.approval_gate.store.finish_execution(
+                approval_id, token, success=status == "completed"
+            )
+        return result
 
     def replay(
         self,
@@ -354,17 +440,31 @@ class AgentEngine:
         return decisions, context_consumed
 
     def _execute_tool(
-        self, decision: RouteDecision, trace: TraceLog
+        self,
+        decision: RouteDecision,
+        trace: TraceLog,
+        *,
+        approval_claimed: bool = False,
     ) -> tuple[str, str]:
         start = time.perf_counter()
         tool_name = decision.tool
         if tool_name is None:
             return "", "error"
+        if self.strict_profile:
+            try:
+                self._validate_boundary(tool_name, decision.arguments)
+                if self.registry.requires_approval(tool_name) and not approval_claimed:
+                    raise ApprovalExecutionDenied(
+                        "Risky execution requires a single-use approval claim"
+                    )
+            except ApprovalExecutionDenied as exc:
+                trace.add_decision("execution_denied", str(exc))
+                return f"Blocked by execution boundary: {exc}.", "blocked"
         policy = self.retry_policies.get(tool_name, RetryPolicy())
         # Retrying a side-effecting tool could duplicate the effect.  Only
         # explicitly safe/idempotent tools inherit configured retry attempts.
         try:
-            if self.registry.requires_approval(tool_name):
+            if approval_claimed or self.registry.requires_approval(tool_name):
                 policy = RetryPolicy()
         except KeyError:
             pass

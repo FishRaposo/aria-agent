@@ -10,6 +10,9 @@ import {
   User,
   Wrench,
 } from "lucide-react";
+import Link from "next/link";
+import { FIXTURE_PROMPTS, getProviderMode, getDemoState, setProviderMode } from "@/lib/demo-scenarios";
+import { useDemoRevision } from "@/lib/use-demo";
 import { useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
@@ -37,14 +40,16 @@ function toolCalls(entries: TraceEntry[]) {
 }
 
 export default function ChatPanel() {
+  useDemoRevision();
+  const sample = getProviderMode() === "sample";
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<AgentMode>("free_running");
+  const [mode, setMode] = useState<AgentMode>("approval_gated");
   const [busy, setBusy] = useState(false);
   const idRef = useRef(0);
 
-  const send = async () => {
-    const message = input.trim();
+  const send = async (retryMessage?: string) => {
+    const message = (retryMessage ?? input).trim();
     if (!message || busy) return;
     setInput("");
     setBusy(true);
@@ -92,7 +97,7 @@ export default function ChatPanel() {
     <div>
       <PageHeader
         title="Chat with the agent"
-        description="Drive the reason-and-act loop. Each turn shows routing, tool calls, approval gating, and cost."
+        description={sample ? "Choose a fixture request to inspect a deterministic scenario. Free text requires a connected backend." : "Drive the reason-and-act loop. Each turn shows routing, tool calls, approval gating, and cost."}
         actions={
           <label className="flex items-center gap-2 text-sm text-ink-400">
             Mode
@@ -108,6 +113,7 @@ export default function ChatPanel() {
         }
       />
 
+      {sample && <div className="mb-4 flex flex-wrap gap-2" aria-label="Fixture prompts">{FIXTURE_PROMPTS.map(prompt => <button key={prompt} className="btn-secondary text-xs" onClick={() => setInput(prompt)}>{prompt}</button>)}</div>}
       <div
         data-testid="chat-thread"
         className="mb-4 min-h-[320px] space-y-5 rounded-xl border border-ink-800 bg-ink-900/40 p-5"
@@ -126,22 +132,22 @@ export default function ChatPanel() {
               ,{" "}
               <button
                 className="text-brand-300 underline-offset-2 hover:underline"
-                onClick={() => setInput("Search for what is an AI agent")}
+                onClick={() => setInput("Inspect the unauthorized repository instruction")}
               >
-                a web search
+                an unauthorized action
               </button>
               , or{" "}
               <button
                 className="text-brand-300 underline-offset-2 hover:underline"
-                onClick={() => setInput("Draft an email to ops@aria.dev")}
+                onClick={() => setInput("Draft an email to ops@example.test")}
               >
                 an email draft
               </button>{" "}
-              (switch to approval-gated to see the gate).
+              (the sample always enforces its permission boundary).
             </p>
           </div>
         ) : (
-          turns.map((turn) => <TurnView key={turn.id} turn={turn} />)
+          turns.map((turn) => <TurnView key={turn.id} turn={turn} retry={() => send(turn.query)} busy={busy} />)
         )}
       </div>
 
@@ -179,8 +185,10 @@ export default function ChatPanel() {
   );
 }
 
-function TurnView({ turn }: { turn: Turn }) {
-  const res = turn.response;
+function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: boolean }) {
+  const original = turn.response;
+  const current = turn.demo && original ? getDemoState().runs.find(run => run.id === original.run_id) : null;
+  const res = current && original ? { ...original, response: current.response, reply: current.response, status: current.status, trace: current.trace } : original;
   const isWrite =
     res?.status === "pending_approval" ||
     (res?.trace.entries ?? []).some(
@@ -217,6 +225,7 @@ function TurnView({ turn }: { turn: Turn }) {
           ) : turn.error ? (
             <div className="rounded-2xl rounded-tl-sm border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-200">
               {turn.error}
+              {getProviderMode() === "connected" && <div className="mt-3 flex flex-wrap gap-2"><button className="btn-secondary" onClick={retry} disabled={busy}>Retry</button><button className="btn-secondary" onClick={() => setProviderMode("sample")}>Enter sample demo</button></div>}
             </div>
           ) : res ? (
             <>
@@ -266,9 +275,9 @@ function TurnView({ turn }: { turn: Turn }) {
                     Held for approval — id{" "}
                     <span className="mono">{res.approval.id}</span>. Resolve it
                     in the{" "}
-                    <a href="/approvals" className="underline">
+                    <Link href="/approvals" className="underline">
                       Approval queue
-                    </a>
+                    </Link>
                     .
                   </span>
                 </div>

@@ -48,6 +48,11 @@ class ApprovalRecord(Base, UUIDMixin, TimestampMixin):
     reason = Column(Text, nullable=True)
     expires_at = Column(Float, nullable=False, default=0.0)
     decided_at = Column(Float, nullable=True)
+    binding_hash = Column(String(64), nullable=True)
+    execution_token = Column(String(32), nullable=True)
+    execution_status = Column(String(32), nullable=True)
+    execution_claimed_at = Column(Float, nullable=True)
+    execution_completed_at = Column(Float, nullable=True)
 
 
 class CreatedTask(Base, UUIDMixin, TimestampMixin):

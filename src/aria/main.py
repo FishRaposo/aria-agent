@@ -24,6 +24,7 @@ import uuid
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -39,6 +40,7 @@ from .agents import AriaAgent
 from .approvals import ApprovalGate
 from .config import AppConfig
 from .costs import CostTracker
+from .internal.core.engine import ApprovalExecutionDenied
 from .internal.core.memory import LocalVectorIndex
 from .internal.core.rate_limit import FixedWindowRateLimiter
 from .internal.core.retry import RetryPolicy
@@ -54,6 +56,14 @@ config = AppConfig()
 setup_logging(level=config.LOG_LEVEL, service_name=config.APP_NAME)
 
 app = FastAPI(title=config.APP_NAME, version="1.0.0")
+if config.CORS_ALLOWED_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.CORS_ALLOWED_ORIGINS.split(","),
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+        allow_credentials=False,
+    )
 app.add_exception_handler(BaseApplicationError, application_error_handler)  # type: ignore[arg-type]
 
 # --- store wiring (DB when available, else in-memory) -----------------------
@@ -160,10 +170,21 @@ class ReplayRequest(BaseModel):
     dry_run: bool = True
 
 
+def _request_mode(requested: Optional[str]) -> str:
+    if (
+        config.AGENT_MODE == "approval_gated"
+        and config.ARIA_SAFETY_MODE == "block"
+        and requested is not None
+        and requested != "approval_gated"
+    ):
+        raise HTTPException(409, "The strict execution profile cannot be downgraded")
+    return requested or config.AGENT_MODE
+
+
 # --- endpoints --------------------------------------------------------------
 @app.post("/agent/chat")
 def chat(req: ChatRequest):
-    mode = req.mode or config.AGENT_MODE
+    mode = _request_mode(req.mode)
     agent = _build_agent(mode, req.session_id)
     run_id = uuid.uuid4().hex[:8]
     result = agent.run_structured(
@@ -191,7 +212,7 @@ def chat(req: ChatRequest):
 def chat_stream(req: ChatRequest):
     """Emit the same engine events as ``/agent/chat`` using Server-Sent Events."""
 
-    mode = req.mode or config.AGENT_MODE
+    mode = _request_mode(req.mode)
     agent = _build_agent(mode, req.session_id)
     run_id = uuid.uuid4().hex[:8]
 
@@ -315,10 +336,23 @@ def approve(approval_id: str, body: DecisionRequest | None = None):
     # Execute the now-approved tool and capture a trace.
     agent = _build_agent(config.AGENT_MODE, "default")
     trace = TraceLog()
-    result = agent.execute_approved(
-        decided["action"], decided["parameters"], trace=trace
-    )
-    return {"approval": decided, "result": result, "trace": trace.summary()}
+    try:
+        result = agent.execute_approved(
+            decided["action"],
+            decided["parameters"],
+            trace=trace,
+            approval_id=approval_id,
+            run_id=decided.get("run_id"),
+        )
+    except ApprovalExecutionDenied as exc:
+        raise HTTPException(
+            409, {"reason": str(exc), "trace": trace.summary()}
+        ) from exc
+    return {
+        "approval": approval_store.get(approval_id),
+        "result": result,
+        "trace": trace.summary(),
+    }
 
 
 @app.post("/approvals/{approval_id}/reject")
@@ -332,6 +366,8 @@ def reject(approval_id: str, body: DecisionRequest | None = None):
         )
     reason = body.reason if body else None
     decided = approval_store.decide(approval_id, approved=False, reason=reason)
+    if decided is not None and decided["status"] == ApprovalStatus.APPROVED.value:
+        raise HTTPException(409, f"Approval '{approval_id}' is already approved")
     return {"approval": decided}
 
 

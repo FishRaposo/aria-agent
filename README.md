@@ -1,6 +1,29 @@
-# ARIA Agent Framework
+# ARIA — an agent you can inspect and control
 
-Canonical clean-break agent harness: approval gates, execution tracing, and progressive-disclosure Agent Skills.
+Follow a request through permission, human review and execution. ARIA pairs a
+visual recruiter demo with a real Python harness whose approvals bind exact
+actions and admit a single execution claim.
+
+**Try the preview:** `cd frontend`, `npm ci`, `npm run demo:ui`, then open
+`http://localhost:3000`. Start the guided demo or explore the calculation,
+review-required draft and denied-action stories. Every screen labels its
+interactive sample data; reset restores the scenario. No credentials required.
+
+**Inspect the engineering:** [case study](docs/portfolio-case-study.md) ·
+[walkthrough and real API setup](docs/portfolio-walkthrough.md) ·
+[coding-agent setup fixture](examples/coding_agent_setup/README.md) ·
+[baseline](docs/portfolio-baseline.md) · [verification](docs/portfolio-verification.md).
+
+The setup fixture has credential-free protocol tests and a reproducible native
+benchmark runner. Native Claude Code trials remain unavailable; no model-quality
+improvement is claimed. The preview simulates actions; Python tests execute actual
+local tools and API/store paths.
+
+![ARIA recruiter preview: inspect a request, review the action, and follow its outcome](docs/images/portfolio-home-1440.png)
+
+Local verification: **302 Python tests passed, 1 host skip; 43 frontend tests;
+13 sample and 2 connected browser tests**. See the dated
+[verification record](docs/portfolio-verification.md) for commands and limits.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
@@ -21,6 +44,8 @@ are optional integration surfaces; none is required to run the suite.
   policies, and fixed-window per-session/tool rate limiting.
 - Approval queues with lazy expiry, an optional local sweeper, and the existing
   Celery sweep task.
+- Immutable action/run/expiry binding, atomic execution claims in memory and SQL,
+  durable no-retry outcomes after uncertain execution, and a strict launch profile.
 - AgentTrace-compatible spans, cost summaries, replay with dry-run default, and
   ordered SSE events at `POST /agent/chat/stream`.
 - A pure-Python hashed-vector memory index at `GET /agent/memory/search`.
@@ -29,6 +54,8 @@ are optional integration surfaces; none is required to run the suite.
   `src/aria/internal/vendor_core/`, pinned and attributed in
   `THIRD_PARTY_NOTICES.md`.
 - A reproducible offline evidence bundle and golden fixture.
+- A visual tour with explicit sample/connected providers; connected outages
+  remain errors with Retry and an explicit switch to sample data.
 
 ## Quick start
 
@@ -52,8 +79,9 @@ optional and only starts PostgreSQL and Redis for integration work.
 multi-hop execution, safety decisions, retries, rate limits, approval state,
 dry-run replay, streaming event order, local memory ranking, costs, and traces.
 The generated bundle lives under ignored `artifacts/portfolio/aria-agent-evidence`.
-It contains `manifest.json`, canonical `report.json`, `report.md`, and
-`checksums.sha256`; `scripts/verify_portfolio_evidence.py` rejects tampering,
+It contains `manifest.json`, canonical `report.json`, `report.md`,
+`strict-profile.json` measuring authorization/denial/single-use/replay effects,
+and `checksums.sha256`; `scripts/verify_portfolio_evidence.py` rejects tampering,
 missing files, malformed manifests, and golden-result drift.
 
 Secrets are redacted by key and by common bearer/API-key patterns. Timestamps,
@@ -61,6 +89,12 @@ runtime durations, generated IDs, and environment paths are excluded from the
 reproducibility hash, while the raw report remains inspectable locally.
 
 ## API surface
+
+For the controlled demonstration, set `AGENT_MODE=approval_gated` and
+`ARIA_SAFETY_MODE=block` before launch. Defaults remain compatible. Existing SQL
+databases require `alembic upgrade head`; old unbound approvals require fresh
+review. A committed claim is never retried automatically after a crash;
+reconcile the outcome first. See [security](docs/security.md).
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -116,13 +150,15 @@ the full suite passed with `--basetemp=.pytest-temp/plan-run`. The Playwright
 Chromium smoke suite was re-run locally on 2026-08-15 with all six tests passing.
 The CI workflow installs Chromium explicitly before running the same suite.
 
-The dashboard is a read-only portfolio surface and keeps its existing routes.
+That snapshot is historical. Current milestone results and environment limits
+are in [the verification record](docs/portfolio-verification.md). The dashboard
+now has interactive synthetic scenario state alongside its connected routes.
 
 ## Portfolio UI demo
 
 The frontend ships a **forced demo mode** for portfolio walkthroughs — no backend,
-credentials, or network required. The thesis: the harness bounds the model; skills
-disclose only when activated.
+credentials, provider service or network font required. It runs on its local
+frontend server. Skills disclose only when activated and do not grant permissions.
 
 ```bash
 cd frontend
@@ -131,17 +167,20 @@ npm run demo:ui
 ```
 
 Open `http://localhost:3000`. Every view reads bundled sample data immediately
-(`NEXT_PUBLIC_DEMO_MODE=true`). A quiet **Sample data** badge marks forced mode.
+(`NEXT_PUBLIC_DEMO_MODE=true`). The persistent **Interactive sample data** toolbar
+identifies the simulation and offers reset.
 
 **Click path:**
 
-1. **Runs** → `inj3ct10n` — prompt injection blocked by deterministic safety before any tool runs.
-2. **Runs** → `a1b2c3d4` — safe calculator tool call with ordered execution trace.
-3. **Approvals** — pending email draft; approve or reject updates local state (**not persisted**).
-4. **Skills** — calculator skill body activated on the safe run; other catalog entries stay closed.
+1. **Start guided demo** — safe calculator with request-to-execution timeline.
+2. **Draft review** — reject, reset and approve the exact action once; nothing is sent.
+3. **Denied action** — repository text cannot grant an unavailable tool permission.
+4. **Skills** — activated calculator content differs from the catalog.
+5. **Setup case** — actual project workflow, engineering evidence and native limits.
 
-To run against a live API instead, start `uvicorn aria.main:app --reload --app-dir src`
-and use `npm run dev` with `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+For a live API, follow the [strict launch and connected workflow](docs/portfolio-walkthrough.md),
+including the explicit local CORS origin. Outages remain visible errors until
+Retry or an explicit sample switch.
 
 ## Boundaries
 

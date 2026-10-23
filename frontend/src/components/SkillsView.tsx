@@ -14,6 +14,8 @@ import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode } from "@/lib/demo-scenarios";
 import type { ActivatedSkill, SkillCatalogEntry, SkillsSnapshot } from "@/types";
 
 function ScopeBadge({ scope }: { scope: string }) {
@@ -38,6 +40,7 @@ function ActivatedCard({ skill }: { skill: ActivatedSkill }) {
               Activated
             </span>
           </div>
+          <p className="mb-2 max-w-xl text-xs text-ink-300">Why loaded: this request matched the skill and explicitly activated its instructions. This does not grant tool permission.</p>
           {skill.activation_command && (
             <p className="mono text-xs text-brand-200">{skill.activation_command}</p>
           )}
@@ -116,6 +119,7 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
 
 export default function SkillsView() {
   const [snapshot, setSnapshot] = useState<SkillsSnapshot | null>(null);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -123,7 +127,7 @@ export default function SkillsView() {
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
       const res = await api.getSkills();
@@ -146,7 +150,7 @@ export default function SkillsView() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, revision]);
 
   const activatedNames = useMemo(
     () => new Set(snapshot?.activated.map((s) => s.name) ?? []),
@@ -163,7 +167,7 @@ export default function SkillsView() {
     <div>
       <PageHeader
         title="Agent skills"
-        description="The harness bounds the model; skills disclose only when activated. Discovery shows metadata — instruction bodies load on explicit /skill activation."
+        description="The catalog describes available instructions. Activated content loaded for a matching request. Skills guide behavior; tool permissions remain a separate execution boundary."
         demo={demo}
         demoForced={demoForced}
         demoReason={demoReason}

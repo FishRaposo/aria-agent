@@ -6,10 +6,13 @@ import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode } from "@/lib/demo-scenarios";
 import type { MemoryMessage } from "@/types";
 
 export default function MemoryView() {
   const [messages, setMessages] = useState<MemoryMessage[]>([]);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -18,7 +21,7 @@ export default function MemoryView() {
   const [session, setSession] = useState("default");
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
       const res = await api.getMemory(session);
@@ -41,7 +44,7 @@ export default function MemoryView() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, revision]);
 
   const userCount = messages.filter((m) => m.role === "user").length;
 

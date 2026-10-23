@@ -7,8 +7,11 @@ import { ModeBadge, StatusBadge } from "@/components/Badges";
 import CostSummaryCard from "@/components/CostSummaryCard";
 import PageHeader from "@/components/PageHeader";
 import { ErrorState, LoadingSkeleton } from "@/components/States";
+import DecisionStory from "@/components/DecisionStory";
 import TraceTimeline from "@/components/TraceTimeline";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode } from "@/lib/demo-scenarios";
 import { formatClock, formatMs } from "@/lib/format";
 import type { AgentRun, TraceEntry } from "@/types";
 
@@ -47,6 +50,7 @@ function EntryLine({ entry }: { entry: TraceEntry }) {
 
 export default function RunDetailView({ runId }: { runId: string }) {
   const [run, setRun] = useState<AgentRun | null>(null);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -54,7 +58,7 @@ export default function RunDetailView({ runId }: { runId: string }) {
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
-    setLoading(true);
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
       const res = await api.getRun(runId);
@@ -77,7 +81,7 @@ export default function RunDetailView({ runId }: { runId: string }) {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, revision]);
 
   return (
     <div>
@@ -108,7 +112,8 @@ export default function RunDetailView({ runId }: { runId: string }) {
             }
           />
 
-          <div className="card">
+          {demo && <DecisionStory run={run} />}
+          <details className="card" open={!demo}><summary className="cursor-pointer text-sm font-medium text-ink-200">Technical run record</summary><div className="mt-4">
             <div className="mb-1 text-xs uppercase tracking-wide text-ink-600">
               Query
             </div>
@@ -125,6 +130,8 @@ export default function RunDetailView({ runId }: { runId: string }) {
             </div>
           </div>
 
+          </details>
+          <p className="text-xs text-ink-400">{demo ? "Illustrative fixture timing and cost. No model calls or charges in this preview." : "Reported backend metrics."}</p>
           <CostSummaryCard cost={run.cost} />
 
           <div className="grid gap-6 lg:grid-cols-5">

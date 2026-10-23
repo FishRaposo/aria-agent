@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 // Smoke E2E over the demo-mode UI. The dev server runs with no backend, so
-// every view falls back to bundled mock data and shows a "Demo mode" badge.
+// every preview request explicitly uses the sample provider without network fallback.
 
 test("home page loads with hero and nav", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle(/ARIA/i);
   await expect(
-    page.getByRole("heading", { name: /ARIA Agent Control Console/i })
+    page.getByRole("heading", { name: /An agent you can.*inspect and control/i })
   ).toBeVisible();
 });
 
