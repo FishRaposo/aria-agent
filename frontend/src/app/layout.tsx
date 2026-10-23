@@ -7,9 +7,28 @@ import "./globals.css";
 
 
 export const metadata: Metadata = {
-  title: "ARIA — Agent Control Console",
+  title: {
+    default: "ARIA — an agent you can inspect and control",
+    template: "%s · ARIA",
+  },
   description:
-    "Operate, trace, and govern an autonomous agent: runs, traces, tool registry, approval queue, and memory.",
+    "Follow a request through permission, human review and execution. ARIA pairs a visual recruiter demo with a real Python harness whose approvals bind exact actions and admit a single execution claim.",
+  applicationName: "ARIA",
+  authors: [{ name: "Vinícius Raposo" }],
+  keywords: ["agent harness", "approval boundary", "controlled execution", "portfolio", "FastAPI", "Next.js"],
+  openGraph: {
+    title: "ARIA — an agent you can inspect and control",
+    description:
+      "Controlled agent execution: validated tools, single-use approvals, inspectable traces, saved skill evidence.",
+    type: "website",
+    siteName: "ARIA",
+  },
+  twitter: {
+    card: "summary",
+    title: "ARIA — an agent you can inspect and control",
+    description:
+      "Controlled agent execution: validated tools, single-use approvals, inspectable traces, saved skill evidence.",
+  },
 };
 
 export default function RootLayout({

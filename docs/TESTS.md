@@ -1,18 +1,26 @@
 # Test types
 
-## Current portfolio milestone — 2026-10-22–23
+## Current portfolio milestone — 2026-10-23 (audit refresh)
 
-The full local Python suite has **302 passed, 1 skipped**. Focused skills pass12
-tests as a separately executed subset. Ruff check/format (85 files), Pyright,
-canonical/strict evidence, package contents and isolated wheel imports pass.
-Native protocol/fixture checks are31 passed/1 host skip; there were no native
-CLI/model trials. The skipped case requires real Windows symlink permission.
+The full local Python suite has **360 passed, 1 skipped** (361 collected). The
+focused skills command passes **32** tests as a separately executed subset.
+Ruff check/format (90 files), Pyright, canonical/strict evidence, package
+contents and isolated wheel imports pass. Native protocol/fixture checks are 31
+passed/1 host skip; there were no native CLI/model trials. The skipped case
+requires real Windows symlink permission.
 
-Frontend: **43 unit tests**, clean lint and production build; **13 sample** and
-**2 connected outage** Chromium tests. Independent screenshot inspection covers
-390×844, 768×1024 and1440×900. A healthy connected browser probe exercises actual
-strict API/SQLite/task creation, completed approval and duplicate409, confirming
-one task in SQL. Sample inspection sees zero backend/external requests/errors.
+Frontend (Next.js 16, React 19, Vitest 5, ESLint 9 flat config): **64 unit
+tests**, clean lint and production build of all 11 routes; **21 sample+a11y**
+(13 scenario/smoke + 8 axe-core WCAG 2.1 A/AA route scans), **2 connected
+outage**, **21 production-bundle** (same sample+a11y specs against `next build`
++ `next start`) and **10 real-process live** Chromium tests. Independent
+screenshot inspection covers 390×844, 768×1024 and 1440×900. A healthy connected
+browser probe exercises actual strict API/SQLite/task creation, completed
+approval and duplicate 409, confirming one task in SQL. Sample inspection sees
+zero backend/external requests/errors. `npm audit --omit=dev` reports zero
+production advisories; nine dev-chain advisories remain in build/lint tooling
+(tailwindcss 3.x glob/postcss chains and the bundled fast-glob inside
+`@next/eslint-plugin-next`), none of which ships to the client bundle.
 
 The dated [verification record](portfolio-verification.md) contains commands,
 red/green findings, screenshots, exact scope and host/CI limitations. It supersedes

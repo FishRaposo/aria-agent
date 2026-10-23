@@ -192,8 +192,9 @@ class ApplicationSkillSession(SkillSession):
                 parts = [
                     part.strip() for part in _SPLIT_RE.split(query) if part.strip()
                 ][: self.max_steps]
+            router = KeywordRouter()
             for part in parts:
-                decision = KeywordRouter().route(part)
+                decision = router.route(part)
                 if decision.tool not in TOOL_SKILLS:
                     continue
                 self._selection_method = "automatic"

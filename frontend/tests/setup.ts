@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // recharts' ResponsiveContainer needs a measured DOM; jsdom reports 0x0.
 // Stub ResizeObserver and element sizing so charts render in tests.

@@ -16,11 +16,11 @@ function SchemaTable({ tool }: { tool: ToolSpec }) {
   const required = new Set(tool.schema?.required ?? []);
   const entries = Object.entries(props) as [string, JsonSchemaProperty][];
   if (entries.length === 0) {
-    return <p className="text-xs text-ink-500">No parameters.</p>;
+    return <p className="text-xs text-ink-400">No parameters.</p>;
   }
   return (
     <table className="w-full text-left text-xs">
-      <thead className="text-ink-500">
+      <thead className="text-ink-400">
         <tr className="border-b border-ink-800">
           <th className="py-1.5 pr-3 font-medium">Parameter</th>
           <th className="py-1.5 pr-3 font-medium">Type</th>

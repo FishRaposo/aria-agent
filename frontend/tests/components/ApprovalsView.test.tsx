@@ -41,15 +41,15 @@ describe("authoritative approval outcomes", () => {
     mockHttpOk({ approvals: [{ ...MOCK_APPROVALS[0], status: "approved", execution_status }] });
     render(<ApprovalsView />);
     await waitFor(() => expect(screen.getByTestId("approval-list")).toBeInTheDocument());
-    expect(screen.getByText(label as string, { exact: true })).toBeInTheDocument();
-    expect(screen.queryByText("Simulated once", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText(label as string)).toBeInTheDocument();
+    expect(screen.queryByText("Simulated once")).not.toBeInTheDocument();
   });
   it("reports expiry returned during an approve request without a success notice", async () => {
     setProviderMode("sample"); resetDemo();
     render(<ApprovalsView />);
     await waitFor(() => screen.getByTestId("approval-list"));
     const now = Date.now(); vi.spyOn(Date, "now").mockReturnValue(now + 240_001);
-    fireEvent.click(screen.getByRole("button", { name: "Approve", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Expired. Not executed."));
     expect(screen.queryByText(/Approved unchanged action/)).not.toBeInTheDocument();
   });

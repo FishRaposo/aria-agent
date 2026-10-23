@@ -59,9 +59,9 @@ it("offers Retry and an explicit sample switch after connected chat failure", as
   const fetchSpy = mockBackendDown();
   render(<ChatPanel />);
   fireEvent.change(screen.getByLabelText("Message the agent"), { target: { value: "What is 7 * 8?" } });
-  fireEvent.click(screen.getByRole("button", { name: "Send", exact: true }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Retry", exact: true })).toBeInTheDocument());
-  expect(screen.getByRole("button", { name: "Enter sample demo", exact: true })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Retry", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Send" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument());
+  expect(screen.getByRole("button", { name: "Enter sample demo" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(fetchSpy.mock.calls.filter(call => String(call[0]).includes("/agent/chat"))).toHaveLength(2));
 });

@@ -79,16 +79,16 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <Lock className="h-4 w-4 text-ink-500" />
+            <Lock className="h-4 w-4 text-ink-400" />
             <h3 className="mono font-semibold text-ink-200">{skill.name}</h3>
             <ScopeBadge scope={skill.scope} />
-            <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-900/60 px-2 py-0.5 text-[11px] font-medium text-ink-500">
+            <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-900/60 px-2 py-0.5 text-[11px] font-medium text-ink-400">
               <EyeOff className="h-3 w-3" />
               Instructions withheld
             </span>
           </div>
           <p className="max-w-2xl text-sm text-ink-400">{skill.description}</p>
-          <p className="mono mt-1 text-xs text-ink-600">{skill.source}</p>
+          <p className="mono mt-1 text-xs text-ink-400">{skill.source}</p>
         </div>
         {skill.activation_hints && (
           <button
@@ -111,7 +111,7 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
         </pre>
       )}
       {!skill.activation_hints && (
-        <p className="mt-3 text-xs text-ink-600">
+        <p className="mt-3 text-xs text-ink-400">
           Metadata only — instructions load only when a request selects this skill.
         </p>
       )}
@@ -194,19 +194,19 @@ export default function SkillsView() {
       {snapshot && (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           <div className="stat-card">
-            <p className="text-xs text-ink-500">Visible in catalog</p>
+            <p className="text-xs text-ink-400">Visible in catalog</p>
             <p className="mt-1 text-2xl font-semibold text-ink-50">
               {snapshot.context_report.visible_skill_count}
             </p>
           </div>
           <div className="stat-card">
-            <p className="text-xs text-ink-500">Loaded for selected run</p>
+            <p className="text-xs text-ink-400">Loaded for selected run</p>
             <p className="mt-1 text-2xl font-semibold text-brand-200">
               {snapshot.activated.length}
             </p>
           </div>
           <div className="stat-card">
-            <p className="text-xs text-ink-500">Instructions withheld</p>
+            <p className="text-xs text-ink-400">Instructions withheld</p>
             <p className="mt-1 text-2xl font-semibold text-ink-300">
               {inactive.length}
             </p>

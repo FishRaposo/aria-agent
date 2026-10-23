@@ -123,7 +123,7 @@ export default function RunsView() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="mono text-xs text-ink-500">{run.id}</span>
+                    <span className="mono text-xs text-ink-400">{run.id}</span>
                     <StatusBadge status={run.status} />
                     <ModeBadge mode={run.mode} />
                     {run.route && (
@@ -133,7 +133,7 @@ export default function RunsView() {
                     )}
                   </div>
                   <p className="truncate font-medium text-ink-100">{run.query}</p>
-                  <p className="mt-0.5 truncate text-sm text-ink-500">
+                  <p className="mt-0.5 truncate text-sm text-ink-400">
                     {run.response}
                   </p>
                 </div>
@@ -141,14 +141,14 @@ export default function RunsView() {
                   <div className="mono text-sm text-ink-200">
                     {formatCost(run.cost?.total_cost ?? run.cost?.estimated_cost ?? 0)}
                   </div>
-                  <div className="mono text-xs text-ink-500">
+                  <div className="mono text-xs text-ink-400">
                     {formatMs(run.trace?.duration_ms)}
                   </div>
-                  <div className="mt-1 text-xs text-ink-600">
+                  <div className="mt-1 text-xs text-ink-400">
                     {demo ? "Fixture · fixed time" : timeAgo(run.created_at)}
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-ink-600 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-ink-400 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
               </Link>
             ))}
           </div>

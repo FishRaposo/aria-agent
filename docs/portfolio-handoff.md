@@ -82,3 +82,23 @@ write. Review timeout3600s. API process10572; tool session55807 owns it. Existin
 Fresh gates: Python354pass/1skip; frontend64; browser10 real +13 sample +2 outage;
 Ruff91/Pyright0, original/new evidence and fresh isolated-wheel/API probe pass.
 Eight new inspected screenshots are linked in verification. No external delivery.
+
+## Audit refresh — 2026-10-23 (1.1.0)
+
+Same branch, in-place audit after the connected milestone. Fixes shipped:
+bounded per-process session reconciliation (`since_created_at` on both stores,
+watermark with boundary re-scan), session `/approvals` filtering via run-id
+projection, one `KeywordRouter` per pass, Next 14→16 + React 18→19 + Vitest
+1→5 + ESLint 8→9 flat config, WCAG AA contrast fixes found by the new axe spec,
+favicon/Open Graph metadata, stale docs/counts, and CI outage+prod-demo steps.
+
+Gates after changes: Python 360/1 skip; focused skills 32; Ruff/format 90 files;
+Pyright 0; evidence+forbidden+wheel pass. Frontend: Vitest 64; lint clean; prod
+build 11 routes; e2e 21 sample+a11y (dev), 2 outage, 21 prod bundle, 10 live.
+`npm audit --omit=dev` = 0; 9 dev-chain advisories remain (tailwindcss 3.x +
+`@next/eslint-plugin-next` bundled globs — none ship to the client).
+
+Limits unchanged: no native trials, no hosted CI on this branch yet, no Docker/
+PostgreSQL verification; SSE first-flush buffering remains documented. Axe is
+route-level WCAG 2.1 A/AA on demo routes, not a full manual accessibility audit.
+Next owner action: hosted CI on PR; merge only when green.

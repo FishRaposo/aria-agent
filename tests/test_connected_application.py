@@ -36,6 +36,7 @@ def connected(request, monkeypatch, tmp_path):
     monkeypatch.setattr(main, "approval_store", stores[2])
     monkeypatch.setattr(main, "registry", build_default_registry(task_store=stores[1]))
     monkeypatch.setattr(main, "_offline_memories", {})
+    monkeypatch.setattr(main, "_reconcile_cursors", {})
     monkeypatch.setattr(main.db_module, "db_available", manager is not None)
     monkeypatch.setattr(main.db_module, "db_manager", manager)
     monkeypatch.setattr(main.config, "AGENT_MODE", "approval_gated")
@@ -410,3 +411,77 @@ def test_chat_reconciles_missing_final_memory_before_next_turn(connected):
     )
     assert final_index < next_query_index
     assert main.task_store.list() == []
+
+
+def test_reconcile_watermark_bounds_history_walk(connected, monkeypatch):
+    client, main, _ = connected
+    run = chat(client, "create task watermark first", "bounded")
+    # Reconciliation runs at the start of each call, so the just-created run is
+    # only seen by the next walk.
+    assert "bounded" not in main._reconcile_cursors
+    client.get("/agent/memory", params={"session_id": "bounded"})
+    cursor = main._reconcile_cursors["bounded"]
+    assert cursor == pytest.approx(main.run_store.get(run["run_id"])["created_at"])
+    calls = []
+    original_list = main.run_store.list
+
+    def spy(**kwargs):
+        calls.append(kwargs["since_created_at"])
+        return original_list(**kwargs)
+
+    monkeypatch.setattr(main.run_store, "list", spy)
+    client.get("/agent/memory", params={"session_id": "bounded"})
+    assert calls[-1] == pytest.approx(cursor, abs=0.002)
+    # A crash-gap outcome recorded on the boundary run is still projected.
+    approval = run["approval"]
+    main.approval_store.decide(approval["id"], True)
+    token = main.approval_store.claim_execution(
+        approval["id"], approval["action"], approval["parameters"], run["run_id"]
+    )
+    main.approval_store.finish_execution(
+        approval["id"],
+        token,
+        success=True,
+        result="boundary outcome",
+        trace={"entries": [], "spans": []},
+    )
+    chat(client, "calculate 3 + 3", "bounded")
+    assert calls[-1] == pytest.approx(cursor, abs=0.002)
+    messages = main._memory_for_session("bounded").get_context()
+    assert any("boundary outcome" in message["content"] for message in messages)
+    # A session never reconciled in this process still walks its full history.
+    main._reconcile_session("untouched")
+    assert calls[-1] is None
+    assert "untouched" not in main._reconcile_cursors
+
+
+def test_run_store_since_filter_and_list_ids(connected):
+    client, main, _ = connected
+    run = chat(client, "calculate 3 + 3", "scoped")
+    created = main.run_store.get(run["run_id"])["created_at"]
+    assert main.run_store.list(session_id="scoped", since_created_at=created + 60) == []
+    assert run["run_id"] in {
+        row["id"]
+        for row in main.run_store.list(
+            session_id="scoped", since_created_at=created - 60
+        )
+    }
+    assert main.run_store.list_ids("scoped") == {run["run_id"]}
+    assert main.run_store.list_ids("untouched") == set()
+    assert main.run_store.list(limit=5)  # unfiltered signature unchanged
+
+
+def test_session_approvals_follow_run_scope(connected):
+    client, main, _ = connected
+    own = chat(client, "create task scoped approval", "scoped")
+    chat(client, "create task other approval", "other")
+    approvals = client.get("/approvals?session_id=scoped").json()["approvals"]
+    assert [approval["id"] for approval in approvals] == [own["approval"]["id"]]
+    statuses = client.get("/approvals?session_id=scoped&status=pending").json()
+    assert [approval["id"] for approval in statuses["approvals"]] == [
+        own["approval"]["id"]
+    ]
+    assert (
+        client.get("/approvals?session_id=scoped&status=approved").json()["approvals"]
+        == []
+    )

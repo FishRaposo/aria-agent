@@ -31,7 +31,7 @@ describe("connected session API contracts", () => {
   });
   it("rejects results from a provider changed while the request was in flight", async () => {
     let resolve!: (value: unknown) => void;
-    global.fetch = vi.fn(() => new Promise(r => { resolve = r; })) as typeof fetch;
+    global.fetch = vi.fn(() => new Promise(r => { resolve = r; })) as unknown as typeof fetch;
     const response = api.listRuns();
     setProviderMode("sample");
     resolve({ ok: true, json: async () => ({ runs: [{ id: "private-live-run" }] }) });

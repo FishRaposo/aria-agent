@@ -7,6 +7,6 @@ it("describes the returned expired decision when approval crosses its deadline",
   setProviderMode("sample"); resetDemo();
   render(<DecisionStory run={getDemoState().runs[1]} />);
   const now = Date.now(); vi.spyOn(Date, "now").mockReturnValue(now + 240_001);
-  fireEvent.click(screen.getByRole("button", { name: "Approve draft", exact: true }));
+  fireEvent.click(screen.getByRole("button", { name: "Approve draft" }));
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Expired. Not executed."));
 });

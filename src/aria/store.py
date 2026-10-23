@@ -83,19 +83,35 @@ class InMemoryRunStore:
             return deepcopy(run) if run else None
 
     def list(
-        self, limit: int = 50, session_id: Optional[str] = None
+        self,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+        since_created_at: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         with self._lock:
             runs = sorted(
                 (
                     r
                     for r in self._runs.values()
-                    if session_id is None or r.get("session_id") == session_id
+                    if (session_id is None or r.get("session_id") == session_id)
+                    and (
+                        since_created_at is None
+                        or r.get("created_at", 0) >= since_created_at
+                    )
                 ),
                 key=lambda r: r.get("created_at", 0),
                 reverse=True,
             )
         return [deepcopy(r) for r in runs[:limit]]
+
+    def list_ids(self, session_id: str) -> set:
+        """Light projection of session run ids without loading run bodies."""
+        with self._lock:
+            return {
+                run_id
+                for run_id, run in self._runs.items()
+                if run.get("session_id") == session_id
+            }
 
 
 class InMemoryTaskStore:

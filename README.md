@@ -139,6 +139,8 @@ npm run lint
 npm run build
 npx playwright install chromium
 npm run test:e2e -- --project=chromium
+npm run test:e2e:connected -- --project=chromium
+npm run test:e2e:prod -- --project=chromium
 npm run test:e2e -- --config playwright.live.config.ts --project=chromium
 # From the repository root after the real-process browser suite:
 # python scripts/verify_connected_evidence.py

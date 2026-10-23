@@ -49,7 +49,7 @@ export default function TraceTimeline({ trace }: TraceTimelineProps) {
 
   if (steps.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-ink-700 bg-ink-900/40 px-4 py-6 text-center text-sm text-ink-500">
+      <p className="rounded-lg border border-dashed border-ink-700 bg-ink-900/40 px-4 py-6 text-center text-sm text-ink-400">
         No spans recorded for this run.
       </p>
     );

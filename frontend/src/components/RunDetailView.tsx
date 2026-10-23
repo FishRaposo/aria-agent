@@ -26,9 +26,9 @@ function EntryLine({ entry }: { entry: TraceEntry }) {
   const Icon = ENTRY_ICON[entry.type] ?? GitBranch;
   return (
     <div className="flex gap-3 py-2">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
       <div className="min-w-0 text-sm">
-        <span className="mr-2 text-xs uppercase tracking-wide text-ink-600">
+        <span className="mr-2 text-xs uppercase tracking-wide text-ink-400">
           {entry.type.replace("_", " ")}
         </span>
         {entry.type === "tool_call" ? (
@@ -120,15 +120,15 @@ export default function RunDetailView({ runId }: { runId: string }) {
 
           {demo ? <DecisionStory run={run} /> : <ConnectedDecisionStory run={run} />}
           <details className="card"><summary className="cursor-pointer text-sm font-medium text-ink-200">Technical run record</summary><div className="mt-4">
-            <div className="mb-1 text-xs uppercase tracking-wide text-ink-600">
+            <div className="mb-1 text-xs uppercase tracking-wide text-ink-400">
               Query
             </div>
             <p className="mb-4 text-ink-100">{run.query}</p>
-            <div className="mb-1 text-xs uppercase tracking-wide text-ink-600">
+            <div className="mb-1 text-xs uppercase tracking-wide text-ink-400">
               Response
             </div>
             <p className="whitespace-pre-wrap text-ink-200">{run.response}</p>
-            <div className="mt-4 flex flex-wrap gap-4 border-t border-ink-800 pt-3 text-xs text-ink-500">
+            <div className="mt-4 flex flex-wrap gap-4 border-t border-ink-800 pt-3 text-xs text-ink-400">
               <span>route: {run.route ?? "—"}</span>
               <span>trace: {run.trace?.trace_id}</span>
               <span>duration: {formatMs(run.trace?.duration_ms)}</span>

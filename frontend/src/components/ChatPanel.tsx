@@ -153,7 +153,7 @@ export default function ChatPanel() {
       >
         {turns.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Bot className="mb-3 h-10 w-10 text-ink-600" />
+            <Bot className="mb-3 h-10 w-10 text-ink-400" />
             <p className="text-sm text-ink-400">
               Ask the agent something. Try{" "}
               <button
@@ -203,7 +203,7 @@ export default function ChatPanel() {
           rows={2}
           placeholder="Message the agent…  (Enter to send, Shift+Enter for newline)"
           aria-label="Message the agent"
-          className="flex-1 resize-none rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-100 placeholder:text-ink-600 outline-none focus:border-brand-500"
+          className="flex-1 resize-none rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-100 placeholder:text-ink-400 outline-none focus:border-brand-500"
         />
         <button type="submit" className="btn-primary h-12" disabled={busy || !input.trim()}>
           {busy ? (
@@ -296,7 +296,7 @@ function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: 
                   <span className="mono truncate text-ink-400">
                     {JSON.stringify(tc.params)}
                   </span>
-                  <span className="mono ml-auto shrink-0 text-ink-500">
+                  <span className="mono ml-auto shrink-0 text-ink-400">
                     {formatMs(tc.latency_ms)}
                   </span>
                 </div>
@@ -318,7 +318,7 @@ function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: 
               )}
 
               {/* cost line */}
-              <div className="flex flex-wrap items-center gap-4 px-1 text-xs text-ink-500">
+              <div className="flex flex-wrap items-center gap-4 px-1 text-xs text-ink-400">
                 <span className="inline-flex items-center gap-1">
                   <Coins className="h-3.5 w-3.5" />
                   {formatCost(res.cost.total_cost ?? res.cost.estimated_cost ?? 0)}

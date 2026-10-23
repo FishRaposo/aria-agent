@@ -10,6 +10,7 @@ import json
 import time
 import uuid
 from copy import deepcopy
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .store import DEFAULT_APPROVAL_TIMEOUT, ApprovalStatus, approval_binding
@@ -87,7 +88,10 @@ class DatabaseRunStore:
             session.close()
 
     def list(
-        self, limit: int = 50, session_id: Optional[str] = None
+        self,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+        since_created_at: Optional[float] = None,
     ) -> List[Dict[str, Any]]:
         from .models import AgentRun
 
@@ -96,12 +100,33 @@ class DatabaseRunStore:
             query = session.query(AgentRun)
             if session_id is not None:
                 query = query.filter(AgentRun.session_id == session_id)
+            if since_created_at is not None:
+                # Stored timestamps round-trip in this host's local frame; see
+                # _row_to_dict's .timestamp() projection.
+                query = query.filter(
+                    AgentRun.created_at >= datetime.fromtimestamp(since_created_at)
+                )
             rows = (
                 query.order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
                 .limit(limit)
                 .all()
             )
             return [self._row_to_dict(r) for r in rows]
+        finally:
+            session.close()
+
+    def list_ids(self, session_id: str) -> set:
+        """Light projection of session run ids without loading run bodies."""
+        from .models import AgentRun
+
+        session = self._session()
+        try:
+            rows = (
+                session.query(AgentRun.id)
+                .filter(AgentRun.session_id == session_id)
+                .all()
+            )
+            return {row.id for row in rows}
         finally:
             session.close()
 

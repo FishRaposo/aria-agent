@@ -11,13 +11,13 @@ describe("connected workspace state", () => {
   it("rehydrates real history, uses session identity and locks strict mode", async () => {
     setSessionId("interview");
     const fetch = vi.fn(async (url: unknown) => ({ ok:true, json:async()=>String(url).includes("/health") ? health : {runs:[{...MOCK_RUNS[0],id:"saved-real",query:"Persisted request",response:"Persisted outcome",session_id:"interview"}]} }));
-    global.fetch=fetch as typeof global.fetch;
+    global.fetch=fetch as unknown as typeof global.fetch;
     render(<ChatPanel/>);
     expect(await screen.findByText("Persisted outcome")).toBeInTheDocument();
     await waitFor(()=>expect(screen.getByLabelText("Mode")).toBeDisabled());
     expect(screen.getByText(/Strict deployment/)).toBeInTheDocument();
     expect(fetch.mock.calls.some(call=>String(call[0]).includes("session_id=interview"))).toBe(true);
-    fireEvent.click(screen.getByRole("button",{name:"read ../outside.txt",exact:true}));
+    fireEvent.click(screen.getByRole("button",{name:"read ../outside.txt"}));
     expect(screen.getByLabelText("Message the agent")).toHaveValue("read ../outside.txt");
     expect(fetch.mock.calls.some(call=>String(call[0]).includes("/agent/chat"))).toBe(false);
   });

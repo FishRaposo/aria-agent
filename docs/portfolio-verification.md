@@ -5,6 +5,40 @@ Evidence dates: 2026-10-22–23, America/Sao_Paulo. Base:
 This record covers local implementation, not hosted release approval. Historical
 hosted CI belongs to the base commit and has not run on this branch.
 
+## 2026-10-23 audit refresh (this section supersedes counts below)
+
+An in-place audit re-ran every gate after bounded-reconcile, accessibility, and
+dependency-remediation changes on the same branch:
+
+| Area | Observed result |
+| --- | --- |
+| Python suite | 360 passed, 1 skipped (361 collected); focused skills 32 |
+| Ruff check + format | Clean; 90 files format-clean |
+| Pyright (explicit `.venv` interpreter) | 0 errors, 0 warnings |
+| Evidence + forbidden scan + wheel | Pass, unchanged contract |
+| Frontend unit (Vitest 5, `vmThreads`) | 64 passed in ~45s |
+| ESLint 9 flat (`eslint .`) | Clean |
+| `next build` (Next 16.4.2, Turbopack) | All 11 routes, `/runs/[id]` dynamic |
+| Sample+a11y e2e (dev) | 21 passed — 13 scenario/smoke + 8 axe scans |
+| Connected outage e2e | 2 passed |
+| Production-bundle e2e (`test:e2e:prod`) | 21 passed |
+| Real-process live e2e | 10 passed |
+| `npm audit --omit=dev` | **0 production advisories** (was 4 incl. `next` critical) |
+| `npm audit` (all deps) | 9 dev-chain advisories remain: tailwindcss 3.x glob/postcss chains and `@next/eslint-plugin-next`'s bundled fast-glob; none ships to the client bundle |
+
+Audit changes in this round: bounded per-process reconciliation watermark plus
+`since_created_at`/`list_ids` store projections (regression-tested on memory
+and SQLite stores); session `/approvals` filtering via run ids; one
+`KeywordRouter` per routing pass; Next 14→16 / React 18→19 / Vitest 1→5 /
+ESLint 8→9-flat migration; WCAG AA contrast fixes (ink-500/600 text raised,
+approve action darkened); app icon + Open Graph metadata; stale doc/version
+corrections; CI gained connected-outage and production-demo steps.
+
+Honest limits unchanged: no native model trials (60 benchmark cells remain
+unrun), no hosted CI on this branch yet, no Docker/PostgreSQL verification,
+session ids are workspace organization — not authentication — and SSE still
+buffers before first flush on the connected stream route.
+
 ## Environment
 
 System Python is 3.14; verification uses an isolated `.venv` with bundled

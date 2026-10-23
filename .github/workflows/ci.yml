@@ -58,3 +58,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -- --project=chromium
+      - name: Connected outage browser checks
+        run: npm run test:e2e:connected -- --project=chromium
+      - name: Production demo browser checks
+        run: npm run test:e2e:prod -- --project=chromium

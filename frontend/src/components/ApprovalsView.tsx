@@ -187,7 +187,7 @@ export default function ApprovalsView() {
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   {a.status === "pending" ? (
                     <>
-                      <span className="inline-flex items-center gap-1 text-xs text-ink-500">
+                      <span className="inline-flex items-center gap-1 text-xs text-ink-400">
                         <Clock className="h-3.5 w-3.5" />
                         {durationLabel(a.seconds_remaining)} left
                       </span>
@@ -195,7 +195,7 @@ export default function ApprovalsView() {
                         <button
                           onClick={() => decide(a.id, true)}
                           disabled={acting[a.id]}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
                         >
                           <Check className="h-3.5 w-3.5" />
                           Approve

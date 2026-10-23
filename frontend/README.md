@@ -1,6 +1,6 @@
 # ARIA — Agent Control Console
 
-A Next.js 14 console for inspectable, permissioned agent execution. The opening
+A Next.js 16 (React 19) console for inspectable, permissioned agent execution. The opening
 screen offers a three-minute guided demonstration and free exploration. The
 interactive sample shows a safe calculation, a draft requiring review, and an
 unauthorized action denied at the tool boundary.
@@ -58,12 +58,15 @@ frontend variables must never contain credentials.
 | `/skills` | Catalog versus activated instructions, with activation rationale and permission distinction. |
 | `/tools` | Tool permissions and expandable JSON schemas. |
 | `/chat` | Deterministic fixture prompts in sample mode, actual chat API in connected mode. |
-| `/memory` | Conversation inspector derived from the current provider's run history; the backend has no memory-read route. |
+| `/memory` | Connected mode reads actual `GET /agent/memory` conversation events, including reconciled approval outcomes; sample mode derives messages from its fixtures. |
 | `/setup` | Strict local API workflow, engineering evidence paths, native-runtime availability and limits. |
 
 The typed client consumes `/agent/runs`, `/agent/runs/{id}`, `/agent/chat`,
-`/tools`, `/tools/{name}`, `/approvals`, `/approvals/{id}/approve`,
-`/approvals/{id}/reject`, `/skills`, and `/health` without changing their wire shapes.
+`/agent/memory`, `/tools`, `/tools/{name}`, `/approvals`,
+`/approvals/{id}/approve`, `/approvals/{id}/reject`, `/skills`, and `/health`
+without changing their wire shapes. The persistent toolbar selects the provider
+and the connected session (`default` unless renamed); the choice survives tab
+reloads while leaf views reset.
 
 ## Verify
 
@@ -79,19 +82,36 @@ Vitest covers provider separation, immutable action bindings, duplicate decision
 expiry, shared runs/approvals/chat, and returned execution statuses. Playwright
 explicitly forces sample mode and tests the full guided path, free exploration,
 reset/reload, keyboard decisions and focus, reduced motion, and 390×844,
-768×1024, and 1440×900 viewports. No live backend is required for these checks.
+768×1024, and 1440×900 viewports. The same run includes an axe-core WCAG 2.1
+A/AA scan of every demo route. No live backend is required for these checks.
 
-Run the separate connected outage test against its own server in PowerShell:
+Two more suites reuse the same config:
 
-```powershell
-$env:PLAYWRIGHT_CONNECTED="true"
-$env:PLAYWRIGHT_PORT="3101"
-npm run test:e2e -- --project=chromium
+```bash
+# Connected outage behavior (provider unreachable; errors stay errors until
+# the user explicitly retries or enters sample mode)
+npm run test:e2e:connected -- --project=chromium
+
+# The same sample+a11y specs against the production build instead of next dev
+npm run test:e2e:prod -- --project=chromium
 ```
 
-Unset those variables before running the sample suite again. An optional
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` chooses an already installed browser.
-The default Playwright server is managed by the test runner and is not reused.
+An optional `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` chooses an already installed
+browser. The default Playwright server is managed by the test runner and is not
+reused.
+
+The live real-process gate builds production Next.js, migrates a disposable
+SQLite file, launches an actual FastAPI process, and asserts HTTP responses,
+UI state and direct SQLite effect counts:
+
+```powershell
+npm run test:e2e -- --config playwright.live.config.ts --project=chromium
+```
+
+It owns dedicated API `8100` and frontend `3102` ports, refuses to reuse an
+occupied test port or the owner's database, and clears provider credentials.
+After the suite, `python scripts/verify_connected_evidence.py` from the
+repository root verifies the recorded connected evidence bundle.
 
 System fonts keep installation and production builds independent of Google Fonts.
 For production, `npm run start` serves a previously built frontend. The existing

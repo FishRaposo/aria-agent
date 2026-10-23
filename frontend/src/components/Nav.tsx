@@ -33,7 +33,7 @@ export default function Nav() {
           </span>
           <span className="text-base font-semibold tracking-tight text-ink-50">
             ARIA
-            <span className="ml-1 hidden text-ink-500 lg:inline">
+            <span className="ml-1 hidden text-ink-400 lg:inline">
               Agent Console
             </span>
           </span>

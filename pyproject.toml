@@ -1,6 +1,6 @@
 [project]
 name = "aria-agent-framework"
-version = "1.0.0"
+version = "1.1.0"
 description = "Canonical clean-break agent harness: approval gates, execution tracing, and progressive-disclosure Agent Skills."
 readme = "README.md"
 license = "MIT"

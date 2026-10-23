@@ -132,9 +132,12 @@ Health exposes safe runtime metadata: execution mode, allowed modes, routing,
 automatic skill selection and persistence availability. Strict deployments disable
 unsupported mode controls. Redis can remain unavailable while SQLite works.
 
-The recovery path currently walks saved session history. It is intentionally
-simple for this local workload; pagination/background recovery and hosted scale
-must be evaluated before making a multi-user deployment claim.
+The recovery path walks saved session history once per process per session,
+then only scans runs saved since that process's latest reconciled boundary —
+the boundary run is always re-checked so an outcome persisted after the run's
+creation is never skipped. It is intentionally simple for this local workload;
+pagination/background recovery and hosted scale must be evaluated before
+making a multi-user deployment claim.
 
 ## Reproduce the connected proof
 

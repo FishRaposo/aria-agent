@@ -1,6 +1,11 @@
 import ConsoleBoundary from "@/components/ConsoleBoundary";
 import RunDetailView from "@/components/RunDetailView";
 
-export default function RunDetailPage({ params }: { params: { id: string } }) {
-  return <ConsoleBoundary><RunDetailView runId={params.id} /></ConsoleBoundary>;
+export default async function RunDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <ConsoleBoundary><RunDetailView runId={id} /></ConsoleBoundary>;
 }

@@ -124,6 +124,13 @@ rate_limiter = (
 _offline_memories: dict[str, Any] = {}
 _memory_lock = threading.Lock()
 
+# Session reconciliation walks saved runs; each process starts with a full
+# walk, then only scans runs saved since its latest reconciled boundary. The
+# deciding call projects outcomes itself, so a missed walk only delays a
+# presentation update written between a crash and this process's start.
+_reconcile_lock = threading.Lock()
+_reconcile_cursors: dict[str, float] = {}
+
 
 def _memory_for_session(session_id: str) -> Any:
     if db_module.db_available and db_module.db_manager is not None:
@@ -259,11 +266,30 @@ def _reconcile_run(run: dict[str, Any]) -> dict[str, Any]:
 
 
 def _reconcile_session(session_id: str) -> None:
-    # Read every saved run in this session; immutable event keys make replay
-    # harmless after restart, even if the process died before updating memory.
-    for run in reversed(run_store.list(limit=1_000_000, session_id=session_id)):
+    # Read saved session runs; immutable event keys make replay harmless after
+    # restart, even if the process died before updating memory. The boundary
+    # run is re-scanned deliberately: an outcome recorded after its creation is
+    # still projected. Only runs newer than the last process-local boundary are
+    # walked; a full-history walk resumes after every restart.
+    with _reconcile_lock:
+        since = _reconcile_cursors.get(session_id)
+    # The small back-off absorbs timestamp round-trip jitter so a run exactly
+    # on the boundary is never skipped.
+    runs = run_store.list(
+        limit=1_000_000,
+        session_id=session_id,
+        since_created_at=(since - 0.001) if since is not None else None,
+    )
+    for run in reversed(runs):
         if run.get("approval_id"):
             _reconcile_run(run)
+    newest = max(
+        (float(run["created_at"]) for run in runs if run.get("created_at")),
+        default=None,
+    )
+    if newest is not None:
+        with _reconcile_lock:
+            _reconcile_cursors[session_id] = max(since or 0.0, newest)
 
 
 def _save_run(
@@ -438,11 +464,12 @@ def list_approvals(
 ):
     if session_id is None:
         return {"approvals": approval_store.list(status=status)}
-    approvals = []
-    for run in run_store.list(limit=1_000_000, session_id=session_id):
-        approval = _approval_for_run(run)
-        if approval is not None and (status is None or approval["status"] == status):
-            approvals.append(approval)
+    run_ids = run_store.list_ids(session_id=session_id)
+    approvals = [
+        approval
+        for approval in approval_store.list(status=status, limit=100_000)
+        if approval.get("run_id") in run_ids
+    ]
     approvals.sort(key=lambda approval: approval["expires_at"], reverse=True)
     return {"approvals": approvals[:100]}
 

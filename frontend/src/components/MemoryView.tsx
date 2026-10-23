@@ -121,7 +121,7 @@ export default function MemoryView() {
                     )}
                   </span>
                   <div className="min-w-0">
-                    <div className="mb-0.5 text-[11px] uppercase tracking-wide text-ink-600">
+                    <div className="mb-0.5 text-[11px] uppercase tracking-wide text-ink-400">
                       {m.role}
                     </div>
                     <div
