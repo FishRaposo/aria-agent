@@ -2,8 +2,11 @@
 
 Evidence dates: 2026-10-22–23, America/Sao_Paulo. Base:
 `ad5f6e94ee70ae0e9eabbe79d903f2993234ab0b`. Branch: `feat/aria-portfolio`.
-This record covers local implementation, not hosted release approval. Historical
-hosted CI belongs to the base commit and has not run on this branch.
+This record covers local implementation plus hosted checks. **Hosted status:**
+PR [#3](https://github.com/FishRaposo/aria-agent/pull/3) merged 2026-10-23
+(merge `f788564`) after green `python`/`frontend` checks; the post-merge `main`
+run `39916939869` also passed both jobs. Earlier hosted CI belongs to the base
+commit.
 
 ## 2026-10-23 audit refresh (this section supersedes counts below)
 

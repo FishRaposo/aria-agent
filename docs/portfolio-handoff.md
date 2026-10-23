@@ -1,9 +1,13 @@
 # ARIA portfolio handoff — 2026-10-23
 
 Branch `feat/aria-portfolio`, base `ad5f6e94ee70ae0e9eabbe79d903f2993234ab0b`.
-Use `git log -1 --format=fuller` for the delivered commit and
-`git diff ad5f6e9..HEAD --stat` for its task-scoped file inventory. No push,
-publication, recording or external provider action was performed.
+**Published:** [PR #3](https://github.com/FishRaposo/aria-agent/pull/3) merged to
+`main` 2026-10-23T07:18:59Z (merge `f7885641c4b1487ab364d6bc5164aac4bd253e2f`)
+after green hosted checks; post-merge `main` run `39916939869` passed
+(`python` 48s, `frontend` 2m19s incl. connected-outage and production-demo
+browser steps). Use `git log -1 --format=fuller` for the delivered commit and
+`git diff ad5f6e9..HEAD --stat` for its task-scoped file inventory. No
+recording or external provider action was performed.
 
 | Task | Outcome and next evidence |
 | --- | --- |
@@ -98,7 +102,9 @@ build 11 routes; e2e 21 sample+a11y (dev), 2 outage, 21 prod bundle, 10 live.
 `npm audit --omit=dev` = 0; 9 dev-chain advisories remain (tailwindcss 3.x +
 `@next/eslint-plugin-next` bundled globs — none ship to the client).
 
-Limits unchanged: no native trials, no hosted CI on this branch yet, no Docker/
+Limits unchanged: no native trials, no Docker/
 PostgreSQL verification; SSE first-flush buffering remains documented. Axe is
 route-level WCAG 2.1 A/AA on demo routes, not a full manual accessibility audit.
-Next owner action: hosted CI on PR; merge only when green.
+Hosted CI: green on PR #3 and on post-merge `main` run `39916939869`; two
+CI-only repairs (Node 22 for vitest 5, subprocess-free benchmark platform,
+generated-manifest exclusions) are commit `6bdafa0`.
