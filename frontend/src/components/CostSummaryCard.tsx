@@ -31,7 +31,7 @@ export default function CostSummaryCard({ cost }: { cost: CostSummary }) {
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {stats.map(({ icon: Icon, label, value }) => (
         <div key={label} className="stat-card">
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-ink-500">
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-ink-400">
             <Icon className="h-3.5 w-3.5" />
             {label}
           </div>

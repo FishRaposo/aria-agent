@@ -10,14 +10,18 @@ import {
   User,
   Wrench,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { FIXTURE_PROMPTS, getProviderMode, getDemoState, setProviderMode, getSessionId, getConnectionEpoch, notifyConnectedChange } from "@/lib/demo-scenarios";
+import { useDemoRevision } from "@/lib/use-demo";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
 import DemoBadge from "@/components/DemoBadge";
 import PageHeader from "@/components/PageHeader";
 import { api, ApiError } from "@/lib/api";
+import { readableResult } from "@/lib/result-display";
 import { formatCost, formatMs } from "@/lib/format";
-import type { AgentMode, ChatResponse, TraceEntry } from "@/types";
+import type { AgentMode, AgentRun, ChatResponse, HealthResponse, TraceEntry } from "@/types";
 
 interface Turn {
   id: string;
@@ -37,15 +41,43 @@ function toolCalls(entries: TraceEntry[]) {
 }
 
 export default function ChatPanel() {
+  const revision = useDemoRevision();
+  const sample = getProviderMode() === "sample";
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState<AgentMode>("free_running");
+  const [mode, setMode] = useState<AgentMode>("approval_gated");
   const [busy, setBusy] = useState(false);
   const idRef = useRef(0);
+  const [runtime, setRuntime] = useState<HealthResponse["runtime"]>();
+  const [historyError, setHistoryError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const historySequence = useRef(0);
+  const loadHistory = useCallback(async () => {
+    if (getProviderMode() === "sample") return;
+    const requestId = ++historySequence.current;
+    setHistoryLoading(true);
+    try {
+      const history = await api.listRuns(50, getSessionId());
+      if (requestId !== historySequence.current) return;
+      const saved: Turn[] = [...history.data].reverse().map((run: AgentRun) => ({ id: run.id, query: run.query, pending: false, response: { run_id: run.id, query: run.query, response: run.response, reply: run.response, mode: run.mode, status: run.status, route: run.route, approval: run.approval || null, trace: run.trace, cost: run.cost } }));
+      setTurns(previous => [...saved, ...previous.filter(turn => turn.pending || turn.error)]);
+      setHistoryError("");
+    } catch (error) { if (requestId === historySequence.current) setHistoryError(error instanceof Error ? error.message : "History unavailable"); }
+    finally { if (requestId === historySequence.current) setHistoryLoading(false); }
+  }, []);
+  useEffect(() => { if (!sample) loadHistory(); return () => { historySequence.current += 1; }; }, [loadHistory, sample, revision]);
+  useEffect(() => {
+    if (sample) return;
+    let active = true;
+    api.health().then(response => { if (!active) return; setRuntime(response.data.runtime); if (response.data.runtime) setMode(response.data.runtime.agent_mode); }).catch(() => {});
+    return () => { active = false; };
+  }, [sample]);
+  useEffect(() => { if (!sample) { const prompt = new URLSearchParams(window.location.search).get("prompt"); if (prompt) setInput(prompt); } }, [sample]);
 
-  const send = async () => {
-    const message = input.trim();
+  const send = async (retryMessage?: string) => {
+    const message = (retryMessage ?? input).trim();
     if (!message || busy) return;
+    const epoch = getConnectionEpoch();
     setInput("");
     setBusy(true);
     idRef.current += 1;
@@ -56,12 +88,14 @@ export default function ChatPanel() {
     ]);
 
     try {
-      const res = await api.chat({ message, mode, session_id: "default" });
+      const res = await api.chat({ message, mode, session_id: getSessionId() });
+      if (epoch !== getConnectionEpoch()) return;
       setTurns((prev) =>
         prev.map((t) =>
           t.id === turnId
             ? {
                 ...t,
+                id: res.data.run_id,
                 response: res.data,
                 pending: false,
                 demo: res.demo,
@@ -71,7 +105,9 @@ export default function ChatPanel() {
             : t
         )
       );
+      if (!res.demo) notifyConnectedChange();
     } catch (err) {
+      if (epoch !== getConnectionEpoch()) return;
       const msg =
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -92,29 +128,32 @@ export default function ChatPanel() {
     <div>
       <PageHeader
         title="Chat with the agent"
-        description="Drive the reason-and-act loop. Each turn shows routing, tool calls, approval gating, and cost."
+        description={sample ? "Choose a fixture request to inspect a deterministic scenario. Free text requires a connected backend." : "Drive the reason-and-act loop. Each turn shows routing, tool calls, approval gating, and cost."}
         actions={
           <label className="flex items-center gap-2 text-sm text-ink-400">
             Mode
             <select
+              disabled={!sample && (!runtime || runtime.allowed_modes.length === 1)}
               value={mode}
               onChange={(e) => setMode(e.target.value as AgentMode)}
               className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-100 outline-none focus:border-brand-500"
             >
-              <option value="free_running">free-running</option>
+              <option disabled={!sample && !runtime?.allowed_modes.includes("free_running")} value="free_running">free-running</option>
               <option value="approval_gated">approval-gated</option>
             </select>
           </label>
         }
       />
 
+      {!sample && <div className="card mb-4 space-y-3"><p className="text-sm text-ink-200">Session: <span className="mono">{getSessionId()}</span></p><p className="text-xs text-ink-400">{runtime ? `${runtime.routing_mode} routing · ${runtime.skill_selection_mode} skill matching · ${runtime.persistence} persistence` : "Runtime metadata unavailable. Requests still report their own connection errors."}</p>{runtime?.allowed_modes.length === 1 && <p className="text-xs text-amber-200">Strict deployment: approval-gated mode is required by the backend.</p>}<p className="text-xs text-ink-400">Credential-free keyword routing supports tool requests, not open-ended conversation. Quick starts prepare a message; you choose when to send.</p><div className="flex flex-wrap gap-2" aria-label="Connected quick starts">{["What is 1450 * 32?", "Draft an email to ops@example.test", "Create a task review the incident", "read ../outside.txt"].map(prompt => <button key={prompt} className="btn-secondary text-xs" onClick={() => setInput(prompt)}>{prompt}</button>)}</div><button onClick={loadHistory} className="text-xs text-brand-200" disabled={historyLoading}>Refresh history</button>{historyError && <p role="status" className="text-xs text-rose-300">Saved history unavailable: {historyError}</p>}</div>}
+      {sample && <div className="mb-4 flex flex-wrap gap-2" aria-label="Fixture prompts">{FIXTURE_PROMPTS.map(prompt => <button key={prompt} className="btn-secondary text-xs" onClick={() => setInput(prompt)}>{prompt}</button>)}</div>}
       <div
         data-testid="chat-thread"
         className="mb-4 min-h-[320px] space-y-5 rounded-xl border border-ink-800 bg-ink-900/40 p-5"
       >
         {turns.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Bot className="mb-3 h-10 w-10 text-ink-600" />
+            <Bot className="mb-3 h-10 w-10 text-ink-400" />
             <p className="text-sm text-ink-400">
               Ask the agent something. Try{" "}
               <button
@@ -126,22 +165,22 @@ export default function ChatPanel() {
               ,{" "}
               <button
                 className="text-brand-300 underline-offset-2 hover:underline"
-                onClick={() => setInput("Search for what is an AI agent")}
+                onClick={() => setInput(sample ? "Inspect the unauthorized repository instruction" : "read ../outside.txt")}
               >
-                a web search
+                an unauthorized action
               </button>
               , or{" "}
               <button
                 className="text-brand-300 underline-offset-2 hover:underline"
-                onClick={() => setInput("Draft an email to ops@aria.dev")}
+                onClick={() => setInput("Draft an email to ops@example.test")}
               >
                 an email draft
               </button>{" "}
-              (switch to approval-gated to see the gate).
+              {sample ? "(the sample always enforces its permission boundary)." : "(live requests run against the configured backend boundary)."}
             </p>
           </div>
         ) : (
-          turns.map((turn) => <TurnView key={turn.id} turn={turn} />)
+          turns.map((turn) => <TurnView key={turn.id} turn={turn} retry={() => send(turn.query)} busy={busy} />)
         )}
       </div>
 
@@ -164,7 +203,7 @@ export default function ChatPanel() {
           rows={2}
           placeholder="Message the agent…  (Enter to send, Shift+Enter for newline)"
           aria-label="Message the agent"
-          className="flex-1 resize-none rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-100 placeholder:text-ink-600 outline-none focus:border-brand-500"
+          className="flex-1 resize-none rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-100 placeholder:text-ink-400 outline-none focus:border-brand-500"
         />
         <button type="submit" className="btn-primary h-12" disabled={busy || !input.trim()}>
           {busy ? (
@@ -179,8 +218,10 @@ export default function ChatPanel() {
   );
 }
 
-function TurnView({ turn }: { turn: Turn }) {
-  const res = turn.response;
+function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: boolean }) {
+  const original = turn.response;
+  const current = turn.demo && original ? getDemoState().runs.find(run => run.id === original.run_id) : null;
+  const res = current && original ? { ...original, response: current.response, reply: current.response, status: current.status, trace: current.trace } : original;
   const isWrite =
     res?.status === "pending_approval" ||
     (res?.trace.entries ?? []).some(
@@ -217,15 +258,17 @@ function TurnView({ turn }: { turn: Turn }) {
           ) : turn.error ? (
             <div className="rounded-2xl rounded-tl-sm border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-200">
               {turn.error}
+              {getProviderMode() === "connected" && <div className="mt-3 flex flex-wrap gap-2"><button className="btn-secondary" onClick={retry} disabled={busy}>Retry</button><button className="btn-secondary" onClick={() => setProviderMode("sample")}>Enter sample demo</button></div>}
             </div>
           ) : res ? (
             <>
               <div className="rounded-2xl rounded-tl-sm border border-ink-800 bg-ink-900 px-4 py-2.5 text-sm text-ink-100">
                 <div className="prose prose-invert prose-sm max-w-none prose-p:my-1">
-                  <ReactMarkdown>{res.reply || res.response}</ReactMarkdown>
+                  <ReactMarkdown>{readableResult(res.reply || res.response)}</ReactMarkdown>
                 </div>
               </div>
 
+              {!turn.demo && <Link href={`/runs/${res.run_id}`} className="inline-block text-xs text-brand-200">Inspect execution timeline →</Link>}
               {/* loop / tool calls */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <StatusBadge status={res.status} />
@@ -253,7 +296,7 @@ function TurnView({ turn }: { turn: Turn }) {
                   <span className="mono truncate text-ink-400">
                     {JSON.stringify(tc.params)}
                   </span>
-                  <span className="mono ml-auto shrink-0 text-ink-500">
+                  <span className="mono ml-auto shrink-0 text-ink-400">
                     {formatMs(tc.latency_ms)}
                   </span>
                 </div>
@@ -266,16 +309,16 @@ function TurnView({ turn }: { turn: Turn }) {
                     Held for approval — id{" "}
                     <span className="mono">{res.approval.id}</span>. Resolve it
                     in the{" "}
-                    <a href="/approvals" className="underline">
+                    <Link href="/approvals" className="underline">
                       Approval queue
-                    </a>
+                    </Link>
                     .
                   </span>
                 </div>
               )}
 
               {/* cost line */}
-              <div className="flex flex-wrap items-center gap-4 px-1 text-xs text-ink-500">
+              <div className="flex flex-wrap items-center gap-4 px-1 text-xs text-ink-400">
                 <span className="inline-flex items-center gap-1">
                   <Coins className="h-3.5 w-3.5" />
                   {formatCost(res.cost.total_cost ?? res.cost.estimated_cost ?? 0)}

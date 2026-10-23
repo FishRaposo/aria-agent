@@ -1,5 +1,6 @@
+import ConsoleBoundary from "@/components/ConsoleBoundary";
 import ToolsView from "@/components/ToolsView";
 
 export default function ToolsPage() {
-  return <ToolsView />;
+  return <ConsoleBoundary><ToolsView /></ConsoleBoundary>;
 }

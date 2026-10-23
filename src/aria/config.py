@@ -1,3 +1,7 @@
+from urllib.parse import urlsplit
+
+from pydantic import field_validator
+
 from aria.internal.vendor_core.config import BaseAppConfig
 
 
@@ -5,6 +9,37 @@ class AppConfig(BaseAppConfig):
     """ARIA-specific configuration layered over the vendored base settings."""
 
     APP_NAME: str = "aria-agent-framework"
+    # Browser access is opt-in; never inherit the vendor's wildcard default.
+    CORS_ALLOWED_ORIGINS: str = ""
+
+    @field_validator("CORS_ALLOWED_ORIGINS")
+    @classmethod
+    def explicit_cors_origins(cls, value: str) -> str:
+        if not value.strip():
+            return ""
+        origins = [origin.strip() for origin in value.split(",")]
+        for origin in origins:
+            parsed = urlsplit(origin)
+            # Accessing port also validates numeric/range syntax. An origin is
+            # just scheme/host/port, never a wildcard, URL path or credentials.
+            _ = parsed.port
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or "*" in origin
+                or "\\" in origin
+                or any(character.isspace() for character in origin)
+                or parsed.netloc.endswith(":")
+            ):
+                raise ValueError(
+                    "CORS_ALLOWED_ORIGINS must list explicit HTTP(S) origins"
+                )
+        return ",".join(dict.fromkeys(origins))
 
     # Agent behaviour
     AGENT_MAX_STEPS: int = 5

@@ -13,7 +13,22 @@ PATTERNS = (
     re.compile(r"git\+https://.*operator-shared-core"),
     re.compile(r"(?:from|import)\s+shared_core"),
 )
-SKIP_PARTS = {".git", "node_modules", ".pytest_cache", ".ruff_cache", "artifacts"}
+SKIP_PARTS = {
+    ".git",
+    "node_modules",
+    ".pytest_cache",
+    ".ruff_cache",
+    "artifacts",
+    ".venv",
+    ".tmp",
+    ".pytest-temp",
+    ".next",
+    ".next-live",
+    ".next-connected-build",
+    "playwright-live-report",
+    "build",
+    "dist",
+}
 
 
 def main() -> int:

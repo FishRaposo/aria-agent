@@ -214,6 +214,100 @@ def _git_sha() -> str | None:
         return None
 
 
+def collect_strict_evidence() -> dict[str, Any]:
+    """Measure actual local tool effects, separately from the historical golden."""
+    effects: list[str] = []
+    registry = ToolRegistry()
+    registry.add(
+        "record",
+        _FlakyInput,
+        lambda value: effects.append(value) or value,
+        Permission.REQUIRES_APPROVAL,
+    )
+    store = InMemoryApprovalStore()
+    agent = AriaAgent(
+        registry,
+        ApprovalGate(mode="approval_gated", store=store),
+        mode="approval_gated",
+        safety_mode="block",
+    )
+
+    def execute(record, *, action="record", value="reviewed", run_id="strict-proof"):
+        try:
+            agent.execute_approved(
+                action,
+                {"value": value},
+                approval_id=record["id"],
+                run_id=run_id,
+            )
+        except PermissionError:
+            return False
+        return True
+
+    def approval(*, approved=True, timeout=300):
+        record = store.create(
+            "record",
+            {"value": "reviewed"},
+            run_id="strict-proof",
+            timeout=timeout,
+        )
+        store.decide(record["id"], approved=approved)
+        return record
+
+    record = approval()
+    assert execute(record), "authorized strict action did not execute"
+    authorized_effects = len(effects)
+    duplicate_denied = not execute(record)
+    denials = {
+        "altered_arguments": not execute(approval(), value="changed"),
+        "wrong_run": not execute(approval(), run_id="other-run"),
+        "rejected": not execute(approval(approved=False)),
+        "expired": not execute(approval(timeout=-1)),
+        "unknown_tool": not execute(approval(), action="unregistered"),
+    }
+    try:
+        agent.execute_approved(
+            "record",
+            {},
+            approval_id=approval()["id"],
+            run_id="strict-proof",
+        )
+        denials["invalid_schema"] = False
+    except PermissionError:
+        denials["invalid_schema"] = True
+    denied_effects = len(effects) - authorized_effects
+    before_replay = len(effects)
+    replay = agent.replay(
+        {
+            "entries": [
+                {
+                    "type": "tool_call",
+                    "tool": "record",
+                    "params": {"value": "replayed"},
+                    "result": "recorded",
+                    "step": 1,
+                }
+            ]
+        },
+        run_id="strict-proof",
+    )
+    result = {
+        "profile": {"mode": "approval_gated", "safety": "block"},
+        "evidence_kind": "local in-memory execution; no provider calls",
+        "authorized_effects": authorized_effects,
+        "execution_status": store.get(record["id"])["execution_status"],
+        "duplicate_denied": duplicate_denied,
+        "denials": denials,
+        "denied_effects": denied_effects,
+        "replay_dry_run": replay.dry_run,
+        "replay_effects": len(effects) - before_replay,
+        "limits": "HTTP concurrency, durable restart and workspace escapes are tested separately; not an OS sandbox or native-agent trial",
+    }
+    assert authorized_effects == 1 and duplicate_denied and all(denials.values())
+    assert denied_effects == 0 and result["replay_effects"] == 0
+    return result
+
+
 def _write_bundle(directory: Path, result: dict[str, Any]) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     redacted = redact_secrets(result)
@@ -233,11 +327,13 @@ def _write_bundle(directory: Path, result: dict[str, Any]) -> None:
     )
     write_json(directory / "report.json", report)
     (directory / "report.md").write_text(report_md, encoding="utf-8")
-    files = ["report.json", "report.md"]
+    write_json(directory / "strict-profile.json", collect_strict_evidence())
+    files = ["report.json", "report.md", "strict-profile.json"]
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "repository": "aria-agent",
         "mode": "offline",
+        "strict_profile": "strict-profile.json",
         "git_sha": _git_sha(),
         "suite_hash": sha256_bytes(canonical_json(redacted).encode("utf-8")),
         "result_hash": result_hash,

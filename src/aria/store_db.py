@@ -8,9 +8,12 @@ in-memory version, reusing :class:`ApprovalStatus` and the expiry rule.
 
 import json
 import time
+import uuid
+from copy import deepcopy
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .store import DEFAULT_APPROVAL_TIMEOUT, ApprovalStatus
+from .store import DEFAULT_APPROVAL_TIMEOUT, ApprovalStatus, approval_binding
 
 
 def _approval_row_to_dict(row) -> Dict[str, Any]:
@@ -28,6 +31,14 @@ def _approval_row_to_dict(row) -> Dict[str, Any]:
         "expires_at": row.expires_at,
         "decided_at": row.decided_at,
         "seconds_remaining": max(0.0, round(row.expires_at - now, 2)),
+        "binding_hash": row.binding_hash,
+        "execution_status": row.execution_status,
+        "execution_claimed_at": row.execution_claimed_at,
+        "execution_completed_at": row.execution_completed_at,
+        "execution_result": row.execution_result,
+        "execution_trace": json.loads(row.execution_trace_json)
+        if row.execution_trace_json
+        else None,
     }
 
 
@@ -52,6 +63,9 @@ class DatabaseRunStore:
                 mode=run.get("mode", "free_running"),
                 status=run.get("status", "completed"),
                 route=run.get("route"),
+                session_id=run.get("session_id"),
+                skill_context_json=json.dumps(run.get("skill_context")),
+                approval_id=run.get("approval_id"),
                 trace_json=json.dumps(run.get("trace")),
                 cost_json=json.dumps(run.get("cost")),
             )
@@ -73,18 +87,46 @@ class DatabaseRunStore:
         finally:
             session.close()
 
-    def list(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def list(
+        self,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+        since_created_at: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
+        from .models import AgentRun
+
+        session = self._session()
+        try:
+            query = session.query(AgentRun)
+            if session_id is not None:
+                query = query.filter(AgentRun.session_id == session_id)
+            if since_created_at is not None:
+                # Stored timestamps round-trip in this host's local frame; see
+                # _row_to_dict's .timestamp() projection.
+                query = query.filter(
+                    AgentRun.created_at >= datetime.fromtimestamp(since_created_at)
+                )
+            rows = (
+                query.order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
+                .limit(limit)
+                .all()
+            )
+            return [self._row_to_dict(r) for r in rows]
+        finally:
+            session.close()
+
+    def list_ids(self, session_id: str) -> set:
+        """Light projection of session run ids without loading run bodies."""
         from .models import AgentRun
 
         session = self._session()
         try:
             rows = (
-                session.query(AgentRun)
-                .order_by(AgentRun.created_at.desc())
-                .limit(limit)
+                session.query(AgentRun.id)
+                .filter(AgentRun.session_id == session_id)
                 .all()
             )
-            return [self._row_to_dict(r) for r in rows]
+            return {row.id for row in rows}
         finally:
             session.close()
 
@@ -97,6 +139,11 @@ class DatabaseRunStore:
             "mode": row.mode,
             "status": row.status,
             "route": row.route,
+            "session_id": row.session_id,
+            "skill_context": json.loads(row.skill_context_json)
+            if row.skill_context_json
+            else None,
+            "approval_id": row.approval_id,
             "trace": json.loads(row.trace_json) if row.trace_json else None,
             "cost": json.loads(row.cost_json) if row.cost_json else None,
             "created_at": row.created_at.timestamp() if row.created_at else 0,
@@ -181,14 +228,17 @@ class DatabaseApprovalStore:
         from .models import ApprovalRecord
 
         ttl = self._timeout if timeout is None else timeout
+        parameters = deepcopy(parameters)
+        expires_at = time.time() + ttl
         session = self._session()
         try:
             record = ApprovalRecord(
                 run_id=run_id,
                 action=action,
-                parameters_json=json.dumps(parameters),
+                parameters_json=json.dumps(parameters, sort_keys=True),
                 status=ApprovalStatus.PENDING.value,
-                expires_at=time.time() + ttl,
+                expires_at=expires_at,
+                binding_hash=approval_binding(action, parameters, run_id, expires_at),
             )
             session.add(record)
             session.commit()
@@ -242,16 +292,26 @@ class DatabaseApprovalStore:
             if row is None:
                 return None
             self._persist_expiry(session, row)
-            if row.status == ApprovalStatus.PENDING.value:
-                row.status = (
-                    ApprovalStatus.APPROVED.value
-                    if approved
-                    else ApprovalStatus.REJECTED.value
-                )
-                row.reason = reason
-                row.decided_at = time.time()
-                session.commit()
-                session.refresh(row)
+            # Compare-and-set in the database, rather than an ORM read/write:
+            # independent workers cannot overwrite an opposing decision.
+            session.query(ApprovalRecord).filter(
+                ApprovalRecord.id == approval_id,
+                ApprovalRecord.status == ApprovalStatus.PENDING.value,
+                ApprovalRecord.expires_at > time.time(),
+            ).update(
+                {
+                    "status": (
+                        ApprovalStatus.APPROVED.value
+                        if approved
+                        else ApprovalStatus.REJECTED.value
+                    ),
+                    "reason": reason,
+                    "decided_at": time.time(),
+                },
+                synchronize_session=False,
+            )
+            session.commit()
+            session.refresh(row)
             return _approval_row_to_dict(row)
         finally:
             session.close()
@@ -259,6 +319,92 @@ class DatabaseApprovalStore:
     @staticmethod
     def _persist_expiry(session, row) -> None:
         if row.status == ApprovalStatus.PENDING.value and time.time() > row.expires_at:
-            row.status = ApprovalStatus.EXPIRED.value
-            row.decided_at = row.expires_at
+            from .models import ApprovalRecord
+
+            session.query(ApprovalRecord).filter(
+                ApprovalRecord.id == row.id,
+                ApprovalRecord.status == ApprovalStatus.PENDING.value,
+                ApprovalRecord.expires_at < time.time(),
+            ).update(
+                {
+                    "status": ApprovalStatus.EXPIRED.value,
+                    "decided_at": row.expires_at,
+                },
+                synchronize_session=False,
+            )
             session.commit()
+            session.refresh(row)
+
+    def claim_execution(
+        self,
+        approval_id: str,
+        action: str,
+        parameters: Dict[str, Any],
+        run_id: Optional[str],
+    ) -> Optional[str]:
+        """A durable conditional UPDATE grants ownership to exactly one worker."""
+        from .models import ApprovalRecord
+
+        session = self._session()
+        try:
+            row = session.get(ApprovalRecord, approval_id)
+            if row is None:
+                return None
+            token = uuid.uuid4().hex
+            claimed = (
+                session.query(ApprovalRecord)
+                .filter(
+                    ApprovalRecord.id == approval_id,
+                    ApprovalRecord.status == ApprovalStatus.APPROVED.value,
+                    ApprovalRecord.execution_token.is_(None),
+                    ApprovalRecord.expires_at > time.time(),
+                    ApprovalRecord.binding_hash
+                    == approval_binding(action, parameters, run_id, row.expires_at),
+                    ApprovalRecord.action == action,
+                    ApprovalRecord.parameters_json
+                    == json.dumps(parameters, sort_keys=True),
+                    ApprovalRecord.run_id == run_id,
+                )
+                .update(
+                    {
+                        "execution_token": token,
+                        "execution_status": "claimed",
+                        "execution_claimed_at": time.time(),
+                    },
+                    synchronize_session=False,
+                )
+            )
+            session.commit()
+            return token if claimed == 1 else None
+        finally:
+            session.close()
+
+    def finish_execution(
+        self,
+        approval_id: str,
+        token: str,
+        *,
+        success: bool,
+        result: Optional[str] = None,
+        trace: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        from .models import ApprovalRecord
+
+        session = self._session()
+        try:
+            session.query(ApprovalRecord).filter(
+                ApprovalRecord.id == approval_id,
+                ApprovalRecord.execution_token == token,
+                ApprovalRecord.execution_status == "claimed",
+            ).update(
+                {
+                    "execution_status": "completed" if success else "failed",
+                    "execution_completed_at": time.time(),
+                    "execution_result": result,
+                    "execution_trace_json": json.dumps(trace),
+                },
+                synchronize_session=False,
+            )
+            session.commit()
+        finally:
+            session.close()

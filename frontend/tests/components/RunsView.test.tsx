@@ -1,3 +1,4 @@
+import { setProviderMode } from "@/lib/demo-scenarios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import RunsView from "@/components/RunsView";
@@ -9,6 +10,7 @@ afterEach(() => {
 
 describe("RunsView", () => {
   it("renders bundled runs and a Demo mode badge when offline", async () => {
+    setProviderMode("sample");
     mockBackendDown();
     render(<RunsView />);
     await waitFor(() =>
@@ -20,6 +22,7 @@ describe("RunsView", () => {
   });
 
   it("renders cost and latency charts", async () => {
+    setProviderMode("sample");
     mockBackendDown();
     render(<RunsView />);
     await waitFor(() =>

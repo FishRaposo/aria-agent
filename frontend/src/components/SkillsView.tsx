@@ -9,12 +9,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
-import type { ActivatedSkill, SkillCatalogEntry, SkillsSnapshot } from "@/types";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
+import type { ActivatedSkill, AgentRun, SkillCatalogEntry, SkillsSnapshot } from "@/types";
 
 function ScopeBadge({ scope }: { scope: string }) {
   return (
@@ -24,7 +26,7 @@ function ScopeBadge({ scope }: { scope: string }) {
   );
 }
 
-function ActivatedCard({ skill }: { skill: ActivatedSkill }) {
+function ActivatedCard({ skill, sample }: { skill: ActivatedSkill; sample: boolean }) {
   const [open, setOpen] = useState(true);
   return (
     <div className="card border-brand-500/25 bg-brand-500/5">
@@ -38,6 +40,9 @@ function ActivatedCard({ skill }: { skill: ActivatedSkill }) {
               Activated
             </span>
           </div>
+          <p className="mb-2 max-w-xl text-xs text-ink-300">Why loaded: {skill.selection_reason || (sample ? "The recorded sample explicitly activated these instructions." : "The recorded selection reason is unavailable.")} Loading a skill does not grant tool permission.</p>
+          <p className="text-xs text-ink-400">{skill.selection_method || (sample ? "explicit" : "unknown")} selection · recorded source: {skill.source}</p>
+          {skill.content_hash && <p className="mono mt-2 break-all text-xs text-ink-400">{skill.content_hash}</p>}
           {skill.activation_command && (
             <p className="mono text-xs text-brand-200">{skill.activation_command}</p>
           )}
@@ -74,16 +79,16 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <Lock className="h-4 w-4 text-ink-500" />
+            <Lock className="h-4 w-4 text-ink-400" />
             <h3 className="mono font-semibold text-ink-200">{skill.name}</h3>
             <ScopeBadge scope={skill.scope} />
-            <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-900/60 px-2 py-0.5 text-[11px] font-medium text-ink-500">
+            <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-900/60 px-2 py-0.5 text-[11px] font-medium text-ink-400">
               <EyeOff className="h-3 w-3" />
               Instructions withheld
             </span>
           </div>
           <p className="max-w-2xl text-sm text-ink-400">{skill.description}</p>
-          <p className="mono mt-1 text-xs text-ink-600">{skill.source}</p>
+          <p className="mono mt-1 text-xs text-ink-400">{skill.source}</p>
         </div>
         {skill.activation_hints && (
           <button
@@ -106,8 +111,8 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
         </pre>
       )}
       {!skill.activation_hints && (
-        <p className="mt-3 text-xs text-ink-600">
-          Metadata only — explicit activation required before any body is loaded.
+        <p className="mt-3 text-xs text-ink-400">
+          Metadata only — instructions load only when a request selects this skill.
         </p>
       )}
     </div>
@@ -115,7 +120,12 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
 }
 
 export default function SkillsView() {
+  const [runs, setRuns] = useState<AgentRun[]>([]);
+  const [selectedRun, setSelectedRun] = useState("");
+  const sequence = useRef(0);
+  useEffect(() => { if (getProviderMode() === "connected") setSelectedRun(new URLSearchParams(window.location.search).get("run_id") || ""); }, []);
   const [snapshot, setSnapshot] = useState<SkillsSnapshot | null>(null);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
@@ -123,15 +133,19 @@ export default function SkillsView() {
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const requestId = ++sequence.current;
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.getSkills();
+      const [res, history] = await Promise.all([api.getSkills(getSessionId(), selectedRun || undefined), api.listRuns(50, getSessionId())]);
+      if (requestId !== sequence.current) return;
+      setRuns(history.data);
       setSnapshot(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== sequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -140,13 +154,14 @@ export default function SkillsView() {
           : "Failed to load skills"
       );
     } finally {
-      setLoading(false);
+      if (requestId === sequence.current) setLoading(false);
     }
-  }, []);
+  }, [selectedRun]);
 
   useEffect(() => {
     load();
-  }, [load]);
+    return () => { sequence.current += 1; };
+  }, [load, revision]);
 
   const activatedNames = useMemo(
     () => new Set(snapshot?.activated.map((s) => s.name) ?? []),
@@ -163,7 +178,7 @@ export default function SkillsView() {
     <div>
       <PageHeader
         title="Agent skills"
-        description="The harness bounds the model; skills disclose only when activated. Discovery shows metadata — instruction bodies load on explicit /skill activation."
+        description="Inspect the instructions recorded for one saved run. Automatic matching selects relevant skills; loaded instructions never grant tool permissions."
         demo={demo}
         demoForced={demoForced}
         demoReason={demoReason}
@@ -175,22 +190,23 @@ export default function SkillsView() {
         }
       />
 
+      {!demo && <div className="card mb-6"><label className="block text-xs text-ink-400">Skill evidence run<select aria-label="Skill evidence run" value={selectedRun} onChange={event => setSelectedRun(event.target.value)} className="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 p-3 text-sm text-ink-100"><option value="">Latest run in session {getSessionId()}</option>{runs.map(run => <option key={run.id} value={run.id}>{run.id} — {run.query}</option>)}</select></label><p className="mt-3 text-xs text-ink-400">Current catalog metadata is separate from immutable instructions recorded when the selected run started.</p></div>}
       {snapshot && (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           <div className="stat-card">
-            <p className="text-xs text-ink-500">Visible in catalog</p>
+            <p className="text-xs text-ink-400">Visible in catalog</p>
             <p className="mt-1 text-2xl font-semibold text-ink-50">
               {snapshot.context_report.visible_skill_count}
             </p>
           </div>
           <div className="stat-card">
-            <p className="text-xs text-ink-500">Activated this session</p>
+            <p className="text-xs text-ink-400">Loaded for selected run</p>
             <p className="mt-1 text-2xl font-semibold text-brand-200">
               {snapshot.activated.length}
             </p>
           </div>
           <div className="stat-card">
-            <p className="text-xs text-ink-500">Instructions withheld</p>
+            <p className="text-xs text-ink-400">Instructions withheld</p>
             <p className="mt-1 text-2xl font-semibold text-ink-300">
               {inactive.length}
             </p>
@@ -210,14 +226,17 @@ export default function SkillsView() {
         />
       ) : (
         <div className="space-y-8" data-testid="skills-view">
+          {snapshot.context_available === false && <div className="card border-amber-400/30"><h2 className="font-semibold text-amber-200">No recorded skill evidence</h2><p className="mt-2 text-sm text-ink-300">{snapshot.run_id ? "This historical run predates durable skill evidence. Its instructions and activation state are unknown." : "No run has recorded skill context in this session yet. Start a connected request to inspect its selection."}</p></div>}
+          {snapshot.context_available !== false && <div className="card"><p className="text-sm text-ink-200">{snapshot.run_id ? `Recorded run: ${snapshot.run_id}` : "Sample skill context"}</p><p className="mt-2 text-xs text-ink-300">{demo ? "Illustrative instructions in sample data." : snapshot.activated.length === 0 ? "No instruction bodies loaded. No model consumption recorded." : snapshot.context_report.context_consumed ? "Instructions were passed to a model context; this does not establish their effectiveness." : "Loaded into prepared context; not consumed by a model. Keyword execution makes no model-use claim."}</p></div>}
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-brand-200">
               <Sparkles className="h-4 w-4" />
               Activated — instructions loaded
             </h2>
             <div className="space-y-3">
+              {snapshot.context_available !== false && snapshot.activated.length === 0 && <p className="text-sm text-ink-400">No skill matched this request. No instruction bodies loaded.</p>}
               {snapshot.activated.map((skill) => (
-                <ActivatedCard key={skill.name} skill={skill} />
+                <ActivatedCard key={skill.name} skill={skill} sample={demo} />
               ))}
             </div>
           </section>

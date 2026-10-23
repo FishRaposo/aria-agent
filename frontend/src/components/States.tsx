@@ -1,3 +1,5 @@
+"use client";
+import { setProviderMode } from "@/lib/demo-scenarios";
 import { AlertCircle, Inbox, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -33,7 +35,7 @@ export function EmptyState({
       data-testid="empty-state"
       className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ink-700 bg-ink-900/40 px-6 py-14 text-center"
     >
-      <div className="mb-3 text-ink-500">{icon ?? <Inbox className="h-9 w-9" />}</div>
+      <div className="mb-3 text-ink-400">{icon ?? <Inbox className="h-9 w-9" />}</div>
       <h3 className="mb-1 text-sm font-semibold text-ink-200">{title}</h3>
       <p className="max-w-sm text-sm text-ink-400">{message}</p>
     </div>
@@ -57,6 +59,7 @@ export function ErrorState({
         Could not load data
       </h3>
       <p className="mb-4 max-w-md text-sm text-rose-300/80">{message}</p>
+      <div className="flex flex-wrap justify-center gap-3">
       {onRetry && (
         <button
           onClick={onRetry}
@@ -66,6 +69,8 @@ export function ErrorState({
           Retry
         </button>
       )}
+      <button className="btn-secondary" onClick={() => setProviderMode("sample")}>Enter sample demo</button>
+      </div>
     </div>
   );
 }

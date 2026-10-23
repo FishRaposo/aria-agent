@@ -15,3 +15,25 @@ Redis service, provider key, or network-backed evaluation is needed. Use
 Run the canonical Python and frontend verification commands from `AGENTS.md`.
 The dated results belong in `README.md` and `docs/TESTS.md`; setup instructions
 remain stable when test counts change.
+
+## Portfolio experiences
+
+From `frontend/`, run `npm ci` then `npm run demo:ui`. The visual sample has
+populated scenarios, guided/free exploration and reset; no backend/provider
+or network font is required. Connected mode uses `npm run dev` with
+`NEXT_PUBLIC_DEMO_MODE=false` and the local `NEXT_PUBLIC_API_URL`. Transport
+errors stay visible until Retry or an explicit sample-mode switch.
+
+Use the [walkthrough](portfolio-walkthrough.md) for the strict Python API launch,
+real approval path and existing-database migration. The [native fixture guide](../examples/coding_agent_setup/README.md)
+provides install/uninstall and credential-free protocol checks. Native runtime
+trials require separately authorized access/model/budget; none ran locally.
+
+## Connected console and SQLite restart evidence
+
+Use the [strict connected setup](portfolio-connected.md#strict-local-setup-with-durable-sqlite)
+for explicit keyword routing, a bounded synthetic sandbox, SQLite, migrations and
+matching CORS. Apply migration `0003_connected_app` to existing development stores;
+unknown historical fields stay unknown. Provider and session preferences persist
+within the browser tab; sample fixture state resets independently. Run the actual
+process-based browser gate described in [connected proof](portfolio-connected.md#reproduce-the-connected-proof).

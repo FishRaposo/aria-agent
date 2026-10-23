@@ -17,10 +17,24 @@ IGNORED_PARTS = {
     ".pytest_cache",
     ".ruff_cache",
     ".venv",
+    ".tmp",
+    ".pytest-temp",
+    ".next",
+    ".next-live",
+    ".next-connected-build",
+    ".next-demo",
+    "playwright-live-report",
+    "playwright-report",
+    "test-results",
+    "artifacts",
     "__pycache__",
     "build",
     "dist",
     "node_modules",
+    # Generated manifests record third-party package names, not identity.
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
 }
 
 

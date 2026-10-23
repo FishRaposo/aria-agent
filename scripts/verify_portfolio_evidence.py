@@ -36,6 +36,36 @@ def verify(directory: Path, golden: Path | None = None) -> list[str]:
     if manifest.get("schema_version") not in {1, 2}:
         errors.append("unsupported evidence schema version")
     errors.extend(verify_checksums(directory, manifest))
+    if manifest.get("strict_profile") is not None:
+        if manifest["strict_profile"] != "strict-profile.json":
+            errors.append("unsupported strict profile path")
+        else:
+            try:
+                strict = json.loads(
+                    (directory / "strict-profile.json").read_text(encoding="utf-8")
+                )
+                valid = (
+                    strict["authorized_effects"] == 1
+                    and strict["denied_effects"] == 0
+                    and strict["duplicate_denied"] is True
+                    and strict["execution_status"] == "completed"
+                    and strict["replay_dry_run"] is True
+                    and strict["replay_effects"] == 0
+                    and set(strict["denials"])
+                    == {
+                        "altered_arguments",
+                        "wrong_run",
+                        "rejected",
+                        "expired",
+                        "unknown_tool",
+                        "invalid_schema",
+                    }
+                    and all(value is True for value in strict["denials"].values())
+                )
+                if not valid:
+                    errors.append("strict profile acceptance failed")
+            except (OSError, ValueError, TypeError, KeyError):
+                errors.append("malformed or missing strict profile proof")
     try:
         report = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

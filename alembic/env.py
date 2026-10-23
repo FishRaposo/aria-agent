@@ -4,11 +4,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from aria.internal.vendor_core.database import Base
 from sqlalchemy import create_engine
 
 from alembic import context
 from aria.config import AppConfig
+from aria.internal.vendor_core.database import Base
 from aria.models import (  # noqa: F401
     AgentRun,
     ApprovalRecord,
@@ -38,10 +38,13 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     connectable = create_engine(app_config.DATABASE_URL)
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
+    try:
+        with connectable.connect() as connection:
+            context.configure(connection=connection, target_metadata=target_metadata)
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        connectable.dispose()
 
 
 if context.is_offline_mode():

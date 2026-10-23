@@ -2,13 +2,17 @@
 
 import { ArrowLeft, Brain, GitBranch, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
 import CostSummaryCard from "@/components/CostSummaryCard";
 import PageHeader from "@/components/PageHeader";
 import { ErrorState, LoadingSkeleton } from "@/components/States";
+import ConnectedDecisionStory from "@/components/ConnectedDecisionStory";
+import DecisionStory from "@/components/DecisionStory";
 import TraceTimeline from "@/components/TraceTimeline";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
 import { formatClock, formatMs } from "@/lib/format";
 import type { AgentRun, TraceEntry } from "@/types";
 
@@ -22,9 +26,9 @@ function EntryLine({ entry }: { entry: TraceEntry }) {
   const Icon = ENTRY_ICON[entry.type] ?? GitBranch;
   return (
     <div className="flex gap-3 py-2">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
       <div className="min-w-0 text-sm">
-        <span className="mr-2 text-xs uppercase tracking-wide text-ink-600">
+        <span className="mr-2 text-xs uppercase tracking-wide text-ink-400">
           {entry.type.replace("_", " ")}
         </span>
         {entry.type === "tool_call" ? (
@@ -47,22 +51,27 @@ function EntryLine({ entry }: { entry: TraceEntry }) {
 
 export default function RunDetailView({ runId }: { runId: string }) {
   const [run, setRun] = useState<AgentRun | null>(null);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
   const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
-    setLoading(true);
+    const requestId = ++requestSequence.current;
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.getRun(runId);
+      const res = await api.getRun(runId, getSessionId());
+      if (requestId !== requestSequence.current) return;
       setRun(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -71,13 +80,14 @@ export default function RunDetailView({ runId }: { runId: string }) {
           : "Failed to load run"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [runId]);
 
   useEffect(() => {
     load();
-  }, [load]);
+    return () => { requestSequence.current += 1; };
+  }, [load, revision]);
 
   return (
     <div>
@@ -101,23 +111,24 @@ export default function RunDetailView({ runId }: { runId: string }) {
             demoForced={demoForced}
             demoReason={demoReason}
             actions={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2"><button className="btn-secondary" onClick={load}>Refresh run</button>
                 <StatusBadge status={run.status} />
                 <ModeBadge mode={run.mode} />
               </div>
             }
           />
 
-          <div className="card">
-            <div className="mb-1 text-xs uppercase tracking-wide text-ink-600">
+          {demo ? <DecisionStory run={run} /> : <ConnectedDecisionStory run={run} />}
+          <details className="card"><summary className="cursor-pointer text-sm font-medium text-ink-200">Technical run record</summary><div className="mt-4">
+            <div className="mb-1 text-xs uppercase tracking-wide text-ink-400">
               Query
             </div>
             <p className="mb-4 text-ink-100">{run.query}</p>
-            <div className="mb-1 text-xs uppercase tracking-wide text-ink-600">
+            <div className="mb-1 text-xs uppercase tracking-wide text-ink-400">
               Response
             </div>
             <p className="whitespace-pre-wrap text-ink-200">{run.response}</p>
-            <div className="mt-4 flex flex-wrap gap-4 border-t border-ink-800 pt-3 text-xs text-ink-500">
+            <div className="mt-4 flex flex-wrap gap-4 border-t border-ink-800 pt-3 text-xs text-ink-400">
               <span>route: {run.route ?? "—"}</span>
               <span>trace: {run.trace?.trace_id}</span>
               <span>duration: {formatMs(run.trace?.duration_ms)}</span>
@@ -125,6 +136,8 @@ export default function RunDetailView({ runId }: { runId: string }) {
             </div>
           </div>
 
+          </details>
+          <p className="text-xs text-ink-400">{demo ? "Illustrative fixture timing and cost. No model calls or charges in this preview." : "Reported backend metrics."}</p>
           <CostSummaryCard cost={run.cost} />
 
           <div className="grid gap-6 lg:grid-cols-5">

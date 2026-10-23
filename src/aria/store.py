@@ -7,9 +7,12 @@ implements the full pending -> approved/rejected/expired lifecycle with a
 timeout, shared by both backends via ``ApprovalStatus`` and the expiry helper.
 """
 
+import hashlib
+import json
 import threading
 import time
 import uuid
+from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -23,6 +26,20 @@ class ApprovalStatus(str, Enum):
     EXPIRED = "expired"
 
 
+def approval_binding(
+    action: str, parameters: Dict[str, Any], run_id: Optional[str], expires_at: float
+) -> str:
+    """Bind the exact reviewed action, JSON arguments, run, and expiry."""
+    payload = json.dumps(
+        [action, parameters, run_id, expires_at],
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def approval_to_dict(record: Dict[str, Any]) -> Dict[str, Any]:
     """Normalise an approval record dict for API responses."""
     now = time.time()
@@ -33,12 +50,18 @@ def approval_to_dict(record: Dict[str, Any]) -> Dict[str, Any]:
         "id": record["id"],
         "run_id": record.get("run_id"),
         "action": record["action"],
-        "parameters": record["parameters"],
+        "parameters": deepcopy(record["parameters"]),
         "status": status,
         "reason": record.get("reason"),
         "expires_at": record["expires_at"],
         "decided_at": record.get("decided_at"),
         "seconds_remaining": max(0.0, round(record["expires_at"] - now, 2)),
+        "binding_hash": record.get("binding_hash"),
+        "execution_status": record.get("execution_status"),
+        "execution_claimed_at": record.get("execution_claimed_at"),
+        "execution_completed_at": record.get("execution_completed_at"),
+        "execution_result": record.get("execution_result"),
+        "execution_trace": deepcopy(record.get("execution_trace")),
     }
 
 
@@ -51,20 +74,44 @@ class InMemoryRunStore:
 
     def save(self, run: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
-            self._runs[run["id"]] = run
+            self._runs[run["id"]] = deepcopy(run)
         return run
 
     def get(self, run_id: str) -> Optional[Dict[str, Any]]:
         with self._lock:
             run = self._runs.get(run_id)
-            return dict(run) if run else None
+            return deepcopy(run) if run else None
 
-    def list(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def list(
+        self,
+        limit: int = 50,
+        session_id: Optional[str] = None,
+        since_created_at: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
         with self._lock:
             runs = sorted(
-                self._runs.values(), key=lambda r: r.get("created_at", 0), reverse=True
+                (
+                    r
+                    for r in self._runs.values()
+                    if (session_id is None or r.get("session_id") == session_id)
+                    and (
+                        since_created_at is None
+                        or r.get("created_at", 0) >= since_created_at
+                    )
+                ),
+                key=lambda r: r.get("created_at", 0),
+                reverse=True,
             )
-        return [dict(r) for r in runs[:limit]]
+        return [deepcopy(r) for r in runs[:limit]]
+
+    def list_ids(self, session_id: str) -> set:
+        """Light projection of session run ids without loading run bodies."""
+        with self._lock:
+            return {
+                run_id
+                for run_id, run in self._runs.items()
+                if run.get("session_id") == session_id
+            }
 
 
 class InMemoryTaskStore:
@@ -117,6 +164,8 @@ class InMemoryApprovalStore:
         timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
         ttl = self._timeout if timeout is None else timeout
+        parameters = deepcopy(parameters)
+        expires_at = time.time() + ttl
         record = {
             "id": uuid.uuid4().hex[:12],
             "run_id": run_id,
@@ -125,8 +174,13 @@ class InMemoryApprovalStore:
             "status": ApprovalStatus.PENDING.value,
             "reason": None,
             "created_at": time.time(),
-            "expires_at": time.time() + ttl,
+            "expires_at": expires_at,
             "decided_at": None,
+            "binding_hash": approval_binding(action, parameters, run_id, expires_at),
+            "execution_token": None,
+            "execution_status": None,
+            "execution_claimed_at": None,
+            "execution_completed_at": None,
         }
         with self._lock:
             self._approvals[record["id"]] = record
@@ -147,7 +201,7 @@ class InMemoryApprovalStore:
             records = list(self._approvals.values())
             for record in records:
                 self._maybe_expire(record)
-        dicts = [approval_to_dict(r) for r in records]
+            dicts = [approval_to_dict(r) for r in records]
         if status:
             dicts = [d for d in dicts if d["status"] == status]
         dicts.sort(key=lambda d: d["expires_at"], reverse=True)
@@ -172,6 +226,58 @@ class InMemoryApprovalStore:
             record["reason"] = reason
             record["decided_at"] = time.time()
             return approval_to_dict(record)
+
+    def claim_execution(
+        self,
+        approval_id: str,
+        action: str,
+        parameters: Dict[str, Any],
+        run_id: Optional[str],
+    ) -> Optional[str]:
+        """Atomically grant one execution; a crash leaves the claim consumed."""
+        with self._lock:
+            record = self._approvals.get(approval_id)
+            if record is None:
+                return None
+            self._maybe_expire(record)
+            if (
+                record["status"] != ApprovalStatus.APPROVED.value
+                or record.get("execution_token") is not None
+                or time.time() >= record["expires_at"]
+                or record.get("binding_hash")
+                != approval_binding(action, parameters, run_id, record["expires_at"])
+                or record["action"] != action
+                or record["parameters"] != parameters
+                or record["run_id"] != run_id
+            ):
+                return None
+            token = uuid.uuid4().hex
+            record["execution_token"] = token
+            record["execution_status"] = "claimed"
+            record["execution_claimed_at"] = time.time()
+            return token
+
+    def finish_execution(
+        self,
+        approval_id: str,
+        token: str,
+        *,
+        success: bool,
+        result: Optional[str] = None,
+        trace: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record an outcome without ever releasing execution ownership."""
+        with self._lock:
+            record = self._approvals.get(approval_id)
+            if (
+                record
+                and record.get("execution_token") == token
+                and record.get("execution_status") == "claimed"
+            ):
+                record["execution_status"] = "completed" if success else "failed"
+                record["execution_completed_at"] = time.time()
+                record["execution_result"] = result
+                record["execution_trace"] = deepcopy(trace)
 
     @staticmethod
     def _maybe_expire(record: Dict[str, Any]) -> None:

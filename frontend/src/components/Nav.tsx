@@ -26,14 +26,14 @@ export default function Nav() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/80 backdrop-blur">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-        <Link href="/" className="flex items-center gap-2">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 md:gap-4 md:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
-            H
+            A
           </span>
           <span className="text-base font-semibold tracking-tight text-ink-50">
             ARIA
-            <span className="ml-1 hidden text-ink-500 sm:inline">
+            <span className="ml-1 hidden text-ink-400 lg:inline">
               Agent Console
             </span>
           </span>
@@ -47,10 +47,12 @@ export default function Nav() {
               <Link
                 key={href}
                 href={href}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
                 className={clsx("nav-link", active && "nav-link-active")}
               >
                 <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{label}</span>
+                <span className="hidden md:inline">{label}</span>
               </Link>
             );
           })}

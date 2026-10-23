@@ -33,6 +33,10 @@ artifacts/
 playwright-report/
 test-results/
 .next/
+.next-live/
+.next-connected-build/
+.next-demo/
+playwright-live-report/
 
 # Local databases (SQLite fallbacks / scratch)
 *.db

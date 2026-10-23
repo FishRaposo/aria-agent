@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // recharts' ResponsiveContainer needs a measured DOM; jsdom reports 0x0.
 // Stub ResizeObserver and element sizing so charts render in tests.
@@ -16,4 +16,9 @@ Object.defineProperty(HTMLElement.prototype, "offsetWidth", {
 Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
   configurable: true,
   value: 400,
+});
+// Recharts measures getBoundingClientRect rather than offsetWidth.
+Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+  configurable: true,
+  value() { return { x: 0, y: 0, width: 800, height: 400, top: 0, left: 0, right: 800, bottom: 400, toJSON() { return {}; } }; },
 });

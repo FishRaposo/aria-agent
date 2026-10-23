@@ -2,13 +2,15 @@
 
 import { Activity, ChevronRight, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
 import CostSummaryCard from "@/components/CostSummaryCard";
 import PageHeader from "@/components/PageHeader";
 import RunCharts from "@/components/RunCharts";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
+import { useDemoRevision } from "@/lib/use-demo";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
 import { formatCost, formatMs, timeAgo } from "@/lib/format";
 import type { AgentRun, CostSummary } from "@/types";
 
@@ -44,22 +46,27 @@ function aggregate(runs: AgentRun[]): CostSummary {
 
 export default function RunsView() {
   const [runs, setRuns] = useState<AgentRun[]>([]);
+  const revision = useDemoRevision();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [demo, setDemo] = useState(false);
   const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
-    setLoading(true);
+    const requestId = ++requestSequence.current;
+    if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.listRuns();
+      const res = await api.listRuns(50, getSessionId());
+      if (requestId !== requestSequence.current) return;
       setRuns(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -68,13 +75,14 @@ export default function RunsView() {
           : "Failed to load runs"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
-  }, [load]);
+    return () => { requestSequence.current += 1; };
+  }, [load, revision]);
 
   return (
     <div>
@@ -104,8 +112,7 @@ export default function RunsView() {
         />
       ) : (
         <div className="space-y-8">
-          <CostSummaryCard cost={aggregate(runs)} />
-          <RunCharts runs={runs} />
+          {demo && <div className="outcome-panel"><p className="eyebrow text-brand-300">THREE REQUESTS. THREE OUTCOMES.</p><h2 className="mt-2">Follow a request to its execution boundary.</h2><p className="mt-2 text-sm text-ink-300">A calculation completes. A draft needs your review. An unauthorized send is denied.</p></div>}
 
           <div className="space-y-3" data-testid="run-list">
             {runs.map((run) => (
@@ -116,7 +123,7 @@ export default function RunsView() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="mono text-xs text-ink-500">{run.id}</span>
+                    <span className="mono text-xs text-ink-400">{run.id}</span>
                     <StatusBadge status={run.status} />
                     <ModeBadge mode={run.mode} />
                     {run.route && (
@@ -126,7 +133,7 @@ export default function RunsView() {
                     )}
                   </div>
                   <p className="truncate font-medium text-ink-100">{run.query}</p>
-                  <p className="mt-0.5 truncate text-sm text-ink-500">
+                  <p className="mt-0.5 truncate text-sm text-ink-400">
                     {run.response}
                   </p>
                 </div>
@@ -134,17 +141,19 @@ export default function RunsView() {
                   <div className="mono text-sm text-ink-200">
                     {formatCost(run.cost?.total_cost ?? run.cost?.estimated_cost ?? 0)}
                   </div>
-                  <div className="mono text-xs text-ink-500">
+                  <div className="mono text-xs text-ink-400">
                     {formatMs(run.trace?.duration_ms)}
                   </div>
-                  <div className="mt-1 text-xs text-ink-600">
-                    {timeAgo(run.created_at)}
+                  <div className="mt-1 text-xs text-ink-400">
+                    {demo ? "Fixture · fixed time" : timeAgo(run.created_at)}
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-ink-600 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-ink-400 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
               </Link>
             ))}
           </div>
+          <p className="text-xs text-ink-400">{demo ? "Illustrative fixture metrics. No model calls or charges in this preview." : "Reported backend metrics."}</p>
+          <CostSummaryCard cost={aggregate(runs)} /><RunCharts runs={runs} />
         </div>
       )}
     </div>

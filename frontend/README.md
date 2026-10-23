@@ -1,113 +1,118 @@
-# ARIA — Agent Control Console (frontend)
+# ARIA — Agent Control Console
 
-A polished Next.js 14 dashboard for the **ARIA agent framework**. It is the
-operator console for an autonomous agent: browse runs, inspect span-level
-traces, chat with the agent live, review the tool registry, govern risky tool
-calls through an approval queue, and inspect conversation memory — with cost and
-latency charts throughout.
+A Next.js 16 (React 19) console for inspectable, permissioned agent execution. The opening
+screen offers a three-minute guided demonstration and free exploration. The
+interactive sample shows a safe calculation, a draft requiring review, and an
+unauthorized action denied at the tool boundary.
 
-> Built to match the portfolio web toolchain: Next.js 14 (App Router) + React 18
-> + TypeScript + Tailwind + lucide-react + recharts + react-markdown, tested with
-> Vitest + @testing-library/react (jsdom) and Playwright.
-
-## Pages
-
-| Route          | What it shows                                                                                 |
-| -------------- | --------------------------------------------------------------------------------------------- |
-| `/`            | Overview / landing.                                                                            |
-| `/runs`        | Run list with aggregate cost/token/latency stats and **cost-per-run** + **latency-per-run** charts. |
-| `/runs/[id]`   | Run detail: response, cost summary, and a **trace timeline** (spans, durations, status) + step log. |
-| `/chat`        | Chat panel driving the reason-and-act loop — tool calls, approval gating, and per-message cost. |
-| `/tools`       | Tool registry: each tool's description, JSON schema, and permission level (safe / requires-approval). |
-| `/approvals`   | Approval queue with status filters and **approve / reject** buttons.                          |
-| `/memory`      | Memory inspector for a session's conversation history.                                        |
-
-## Backend endpoints consumed
-
-The typed client in [`src/lib/api.ts`](src/lib/api.ts) talks to the ARIA
-FastAPI service:
-
-- `GET  /agent/runs` — run list
-- `GET  /agent/runs/{id}` — run detail (trace + cost)
-- `POST /agent/chat` — run the agent on a message
-- `GET  /tools` — tool registry
-- `GET  /approvals?status=` — approval queue
-- `POST /approvals/{id}/approve` · `POST /approvals/{id}/reject`
-- `GET  /health` — dependency health
-
-The Memory inspector derives session history from `GET /agent/runs` when live
-(the backend persists memory but exposes no read route).
-
-## Run it
+## Run the sample
 
 ```bash
-cd frontend
-npm install
-npm run dev          # http://localhost:3000
+npm ci
+npm run demo:ui
 ```
 
-Point it at a backend with `NEXT_PUBLIC_API_URL` (default
-`http://localhost:8000`). To run the ARIA API locally:
+Open http://localhost:3000. The persistent **Interactive sample data** label
+identifies a simulation with no backend or provider calls. Decisions, run
+outcomes, and fixture chat share one in-memory state in this tab. **Reset demo**
+and reload restore the original scenarios. A completed approval cannot execute
+again; rejected and expired approvals remain unexecuted. Expired actions require
+a new review. Chat accepts the three suggested fixture prompts and clearly
+identifies unsupported free text.
+
+## Connect the actual project
+
+From the repository root in PowerShell:
+
+```powershell
+python -m pip install -e ".[dev]"
+$env:AGENT_MODE="approval_gated"
+$env:ARIA_SAFETY_MODE="block"
+$env:CORS_ALLOWED_ORIGINS="http://localhost:3000"
+uvicorn aria.main:app --app-dir src --port 8000
+```
+
+In `frontend/`, use `npm run dev` with
+`NEXT_PUBLIC_API_URL=http://localhost:8000` and
+`NEXT_PUBLIC_DEMO_MODE=false`. Browser access is opt-in through the backend's
+explicit origin allowlist. Change that allowlist if the frontend origin differs.
+The sample toolbar also offers **Connect API**.
+
+Connected mode uses the actual API. Network and HTTP failures remain visible;
+there is no automatic substitution of sample data or simulated decisions. Error
+views provide **Retry** and an explicit **Enter sample demo** action. Switching
+providers clears incompatible view state. A permission approval and a completed
+execution have separate labels; unavailable execution evidence remains unconfirmed.
+
+Copy `.env.example` to `.env.local` to override the defaults. These public
+frontend variables must never contain credentials.
+
+## Routes
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Scenario launcher, guided demo, actual-project and evidence entrypoints. |
+| `/runs` | Three sample stories or actual run history, plus existing cost/latency charts. |
+| `/runs/[id]` | Request → tool → permission → approval → execution timeline, exact review arguments, and technical trace. |
+| `/approvals` | Review decisions, filters, expiry recovery, and authoritative execution status. |
+| `/skills` | Catalog versus activated instructions, with activation rationale and permission distinction. |
+| `/tools` | Tool permissions and expandable JSON schemas. |
+| `/chat` | Deterministic fixture prompts in sample mode, actual chat API in connected mode. |
+| `/memory` | Connected mode reads actual `GET /agent/memory` conversation events, including reconciled approval outcomes; sample mode derives messages from its fixtures. |
+| `/setup` | Strict local API workflow, engineering evidence paths, native-runtime availability and limits. |
+
+The typed client consumes `/agent/runs`, `/agent/runs/{id}`, `/agent/chat`,
+`/agent/memory`, `/tools`, `/tools/{name}`, `/approvals`,
+`/approvals/{id}/approve`, `/approvals/{id}/reject`, `/skills`, and `/health`
+without changing their wire shapes. The persistent toolbar selects the provider
+and the connected session (`default` unless renamed); the choice survives tab
+reloads while leaf views reset.
+
+## Verify
 
 ```bash
-# from the repo root
-uvicorn aria.main:app --app-dir src --host 0.0.0.0 --port 8000
+npm test -- --run
+npm run lint
+npm run build
+npx playwright install chromium
+npm run test:e2e -- --project=chromium
 ```
 
-### Environment
+Vitest covers provider separation, immutable action bindings, duplicate decisions,
+expiry, shared runs/approvals/chat, and returned execution statuses. Playwright
+explicitly forces sample mode and tests the full guided path, free exploration,
+reset/reload, keyboard decisions and focus, reduced motion, and 390×844,
+768×1024, and 1440×900 viewports. The same run includes an axe-core WCAG 2.1
+A/AA scan of every demo route. No live backend is required for these checks.
 
-| Variable              | Default                 | Purpose                          |
-| --------------------- | ----------------------- | -------------------------------- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the ARIA FastAPI backend. |
-
-Copy `.env.example` to `.env.local` to override.
-
-## Demo mode (no backend required)
-
-The dashboard is **live-first with a graceful demo fallback**, so every view is
-fully explorable with **no backend running**:
-
-- Each request tries the real backend first.
-- If the backend is **unreachable** (network failure), the view falls back to
-  bundled mock data ([`src/lib/mockData.ts`](src/lib/mockData.ts)) and shows a
-  visible **"Demo mode"** badge explaining why.
-- A real **HTTP 4xx/5xx is surfaced as an error state** — never masked by mock
-  data — so backend problems stay visible.
-- In demo mode, **writes** (chat in approval-gated mode, approve/reject) run a
-  local simulation and display a **"demo — not persisted"** notice.
-
-In demo mode the Chat panel even runs a small local reason-and-act loop, so you
-can watch routing, tool calls, the approval gate, and cost without any server.
-
-Just run `npm run dev` and open the app — no backend needed.
-
-## Tests
+Two more suites reuse the same config:
 
 ```bash
-npm run test         # Vitest component + api-client tests (no backend needed)
-npm run test:e2e     # Playwright smoke E2E over the demo-mode UI
+# Connected outage behavior (provider unreachable; errors stay errors until
+# the user explicitly retries or enters sample mode)
+npm run test:e2e:connected -- --project=chromium
+
+# The same sample+a11y specs against the production build instead of next dev
+npm run test:e2e:prod -- --project=chromium
 ```
 
-- **Vitest** (`tests/`) renders the key components/views against bundled mock
-  data with `fetch` stubbed to simulate a down backend, and asserts the
-  demo-mode fallback, error surfacing, charts, trace timeline, approval flow,
-  and chat loop. All tests pass with no backend.
-- **Playwright** (`e2e/smoke.spec.ts`) drives the live demo-mode UI: home,
-  runs + charts, run detail trace, tools registry, approval controls, and a
-  chat turn.
+An optional `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` chooses an already installed
+browser. The default Playwright server is managed by the test runner and is not
+reused.
 
-## Build
+The live real-process gate builds production Next.js, migrates a disposable
+SQLite file, launches an actual FastAPI process, and asserts HTTP responses,
+UI state and direct SQLite effect counts:
 
-```bash
-npm run build        # next production build
-npm run start        # serve the production build
+```powershell
+npm run test:e2e -- --config playwright.live.config.ts --project=chromium
 ```
 
-## Docker
+It owns dedicated API `8100` and frontend `3102` ports, refuses to reuse an
+occupied test port or the owner's database, and clears provider credentials.
+After the suite, `python scripts/verify_connected_evidence.py` from the
+repository root verifies the recorded connected evidence bundle.
 
-A multi-stage `Dockerfile` is provided. The repo's root `docker-compose.yml`
-includes a `web` service:
-
-```bash
-docker compose up web
-```
+System fonts keep installation and production builds independent of Google Fonts.
+For production, `npm run start` serves a previously built frontend. The existing
+Dockerfile and root compose web service remain available.

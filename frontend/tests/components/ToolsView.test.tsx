@@ -1,3 +1,4 @@
+import { setProviderMode } from "@/lib/demo-scenarios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ToolsView from "@/components/ToolsView";
@@ -9,6 +10,7 @@ afterEach(() => {
 
 describe("ToolsView", () => {
   it("lists the five builtin tools with permission badges", async () => {
+    setProviderMode("sample");
     mockBackendDown();
     render(<ToolsView />);
     await waitFor(() =>
@@ -21,6 +23,7 @@ describe("ToolsView", () => {
   });
 
   it("reveals a tool's schema parameters on expand", async () => {
+    setProviderMode("sample");
     mockBackendDown();
     render(<ToolsView />);
     await waitFor(() => screen.getByText("calculator"));

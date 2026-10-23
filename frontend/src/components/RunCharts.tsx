@@ -42,7 +42,7 @@ export default function RunCharts({ runs }: RunChartsProps) {
         <h3 className="mb-1 text-sm font-semibold text-ink-200">
           Cost per run
         </h3>
-        <p className="mb-4 text-xs text-ink-500">Estimated USD, by run id</p>
+        <p className="mb-4 text-xs text-ink-400">Estimated USD, by run id</p>
         <div data-testid="cost-chart" className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -83,7 +83,7 @@ export default function RunCharts({ runs }: RunChartsProps) {
         <h3 className="mb-1 text-sm font-semibold text-ink-200">
           Latency per run
         </h3>
-        <p className="mb-4 text-xs text-ink-500">Total trace duration (ms)</p>
+        <p className="mb-4 text-xs text-ink-400">Total trace duration (ms)</p>
         <div data-testid="latency-chart" className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
