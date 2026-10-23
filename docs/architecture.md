@@ -59,3 +59,14 @@ the package, demo, and CI do not need them to be running.
 The server-used compatibility subset is vendored under
 `src/aria/internal/vendor_core/` and pinned in `THIRD_PARTY_NOTICES.md`. No
 runtime import resolves to a sibling checkout or an external Git URL.
+
+## Connected application evidence (2026-10-23)
+
+The API creates a separate automatic skill session per run. Canonical shipped
+skills live in `.agents/skills`, become wheel resources at build time, and never
+inherit ambient home/project trust. Saved runs carry nullable session identity,
+skill snapshots and approval origin. Read models project authoritative approval
+results/traces and durably deduplicate final conversation outcomes without tool
+redispatch. The frontend selects a session, inspects a saved run, and resets only
+leaf view state when switching context. See the [connected architecture and
+recovery contract](portfolio-connected.md) for interfaces, migration and limits.

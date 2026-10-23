@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { PermissionBadge } from "@/components/Badges";
 import PageHeader from "@/components/PageHeader";
@@ -107,16 +107,20 @@ export default function ToolsView() {
   const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
       const res = await api.listTools();
+      if (requestId !== requestSequence.current) return;
       setTools(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -125,12 +129,13 @@ export default function ToolsView() {
           : "Failed to load tools"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
+    return () => { requestSequence.current += 1; };
   }, [load, revision]);
 
   const safe = tools.filter((t) => t.permission === "safe").length;

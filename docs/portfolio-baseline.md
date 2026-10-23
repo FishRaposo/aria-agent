@@ -47,3 +47,20 @@ On this host, Windows sandbox child-process access affects Pyright, Vitest, Play
 - Native hook protocol/fixture tests; unavailable native model trials remain explicitly unavailable.
 - Frontend unit/lint/build and browser journeys at three viewports, keyboard/reduced motion, zero-provider/backend sample operation, and honest connected failures.
 - Reviewed screenshots, updated README/case study/walkthrough, plan checkboxes matching measured results, and final task-scoped diff/commit.
+
+## Connected milestone baseline — 2026-10-23
+
+Started from clean `913fefaf1b18033f597be46fa2c1a95f80703731` on
+`feat/aria-portfolio`; origin/main rebase reported already up to date. Before
+behavior edits, pytest over skills/API/approvals/portfolio boundaries passed110
+checks (`--basetemp=.pytest-temp/connected-baseline`, JUnit/log retained under
+`.tmp/connected-baseline-python.*`); frontend passed43 tests in12 files. The API
+actually returned404 for `/skills`, lacked persisted session/skill evidence and
+left a completed approval's run pending. Reading those records did not alter them.
+
+New backend regressions initially failed20 assertions; skill behavior tests exposed
+empty selection/catalog and actual escaped file dispatch. Separate live-process
+metadata regression returned an empty catalog instead of5. These were behavioral
+failures. Supplemental fault/evidence tests added after implementation are not
+claimed as initial red-first work. Worker reports and parent command logs remain
+under ignored `.tmp/connected-*`; fresh final results are in verification.

@@ -21,3 +21,9 @@
 | Native CLI unavailable | all 60 benchmark cells unavailable, null native cost | fixture benchmark contract |
 
 The system favors a visible degraded result over silently widening authority.
+
+Connected skill failures block before execution, and missing historical evidence
+stays unknown. Session changes clear incompatible page state while preserving the
+router. Canonical approval reads repair missing presentation/memory updates after
+restart without dispatch. A claimed unfinished action stays outcome-unconfirmed.
+See [connected recovery and evidence](portfolio-connected.md).

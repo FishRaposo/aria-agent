@@ -21,6 +21,9 @@ class AgentRun(Base, UUIDMixin, TimestampMixin):
     mode = Column(String(32), nullable=False, default="free_running")
     status = Column(String(32), nullable=False, default="completed", index=True)
     route = Column(String(32), nullable=True)
+    session_id = Column(String(64), nullable=True, index=True)
+    skill_context_json = Column(Text, nullable=True)
+    approval_id = Column(String(64), nullable=True, index=True)
     trace_json = Column(Text, nullable=True)
     cost_json = Column(Text, nullable=True)
 
@@ -34,6 +37,7 @@ class MemoryMessage(Base, UUIDMixin, TimestampMixin):
     role = Column(String(32), nullable=False)
     content = Column(Text, nullable=False)
     seq = Column(Integer, nullable=False, default=0)
+    event_key = Column(String(200), nullable=True, unique=True)
 
 
 class ApprovalRecord(Base, UUIDMixin, TimestampMixin):
@@ -53,6 +57,8 @@ class ApprovalRecord(Base, UUIDMixin, TimestampMixin):
     execution_status = Column(String(32), nullable=True)
     execution_claimed_at = Column(Float, nullable=True)
     execution_completed_at = Column(Float, nullable=True)
+    execution_result = Column(Text, nullable=True)
+    execution_trace_json = Column(Text, nullable=True)
 
 
 class CreatedTask(Base, UUIDMixin, TimestampMixin):

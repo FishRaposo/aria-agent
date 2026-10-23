@@ -28,3 +28,12 @@ Use the [walkthrough](portfolio-walkthrough.md) for the strict Python API launch
 real approval path and existing-database migration. The [native fixture guide](../examples/coding_agent_setup/README.md)
 provides install/uninstall and credential-free protocol checks. Native runtime
 trials require separately authorized access/model/budget; none ran locally.
+
+## Connected console and SQLite restart evidence
+
+Use the [strict connected setup](portfolio-connected.md#strict-local-setup-with-durable-sqlite)
+for explicit keyword routing, a bounded synthetic sandbox, SQLite, migrations and
+matching CORS. Apply migration `0003_connected_app` to existing development stores;
+unknown historical fields stay unknown. Provider and session preferences persist
+within the browser tab; sample fixture state resets independently. Run the actual
+process-based browser gate described in [connected proof](portfolio-connected.md#reproduce-the-connected-proof).

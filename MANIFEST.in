@@ -1,0 +1,2 @@
+recursive-include .agents/skills SKILL.md
+include setup.py

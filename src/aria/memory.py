@@ -7,6 +7,7 @@ history survives restarts. ``get_memory()`` picks the backend based on the DB
 availability probe, mirroring the offline-first default.
 """
 
+import threading
 from typing import Dict, List, Optional
 
 _DEFAULT_SESSION = "default"
@@ -19,20 +20,33 @@ class AgentMemory:
         self.session_id = session_id
         self.max_messages = max_messages
         self.messages: List[Dict[str, str]] = []
+        self._lock = threading.RLock()
+        self._event_keys: set[str] = set()
 
     def add_message(self, role: str, content: str) -> None:
-        self.messages.append({"role": role, "content": content})
-        # Bound growth so context never explodes past max_messages.
-        if len(self.messages) > self.max_messages:
-            self.messages = self.messages[-self.max_messages :]
+        with self._lock:
+            self.messages.append({"role": role, "content": content})
+            if len(self.messages) > self.max_messages:
+                self.messages = self.messages[-self.max_messages :]
+
+    def add_message_once(self, role: str, content: str, event_key: str) -> bool:
+        """Append a reconciliation event once, including after context trimming."""
+        with self._lock:
+            if event_key in self._event_keys:
+                return False
+            self.add_message(role, content)
+            self._event_keys.add(event_key)
+            return True
 
     def get_context(self, limit: Optional[int] = None) -> List[Dict[str, str]]:
-        if limit is None:
-            return list(self.messages)
-        return list(self.messages[-limit:])
+        with self._lock:
+            messages = self.messages if limit is None else self.messages[-limit:]
+            return [dict(message) for message in messages]
 
     def clear(self) -> None:
-        self.messages = []
+        with self._lock:
+            self.messages = []
+            self._event_keys.clear()
 
 
 class PersistentMemory:
@@ -56,24 +70,46 @@ class PersistentMemory:
         return next(self.session_factory())
 
     def add_message(self, role: str, content: str) -> None:
+        self._append(role, content)
+
+    def add_message_once(self, role: str, content: str, event_key: str) -> bool:
+        return self._append(role, content, event_key=f"{self.session_id}:{event_key}")
+
+    def _append(self, role: str, content: str, event_key: Optional[str] = None) -> bool:
+        from sqlalchemy import func
+        from sqlalchemy.exc import IntegrityError
+
         from .models import MemoryMessage
 
         session = self._session()
         try:
-            count = (
-                session.query(MemoryMessage)
+            previous = (
+                session.query(func.max(MemoryMessage.seq))
                 .filter(MemoryMessage.session_id == self.session_id)
-                .count()
+                .scalar()
             )
             session.add(
                 MemoryMessage(
                     session_id=self.session_id,
                     role=role,
                     content=content,
-                    seq=count,
+                    seq=0 if previous is None else previous + 1,
+                    event_key=event_key,
                 )
             )
-            session.commit()
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                if (
+                    event_key is None
+                    or not session.query(MemoryMessage)
+                    .filter(MemoryMessage.event_key == event_key)
+                    .first()
+                ):
+                    raise
+                return False
+            return True
         finally:
             session.close()
 
@@ -85,9 +121,14 @@ class PersistentMemory:
             query = (
                 session.query(MemoryMessage)
                 .filter(MemoryMessage.session_id == self.session_id)
-                .order_by(MemoryMessage.seq.asc())
+                .order_by(
+                    MemoryMessage.seq.desc(),
+                    MemoryMessage.created_at.desc(),
+                    MemoryMessage.id.desc(),
+                )
+                .limit(self.max_messages if limit is None else limit)
             )
-            rows = query.all()
+            rows = list(reversed(query.all()))
         finally:
             session.close()
         messages = [{"role": r.role, "content": r.content} for r in rows]

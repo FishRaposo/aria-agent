@@ -34,6 +34,10 @@ def _approval_row_to_dict(row) -> Dict[str, Any]:
         "execution_status": row.execution_status,
         "execution_claimed_at": row.execution_claimed_at,
         "execution_completed_at": row.execution_completed_at,
+        "execution_result": row.execution_result,
+        "execution_trace": json.loads(row.execution_trace_json)
+        if row.execution_trace_json
+        else None,
     }
 
 
@@ -58,6 +62,9 @@ class DatabaseRunStore:
                 mode=run.get("mode", "free_running"),
                 status=run.get("status", "completed"),
                 route=run.get("route"),
+                session_id=run.get("session_id"),
+                skill_context_json=json.dumps(run.get("skill_context")),
+                approval_id=run.get("approval_id"),
                 trace_json=json.dumps(run.get("trace")),
                 cost_json=json.dumps(run.get("cost")),
             )
@@ -79,14 +86,18 @@ class DatabaseRunStore:
         finally:
             session.close()
 
-    def list(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def list(
+        self, limit: int = 50, session_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         from .models import AgentRun
 
         session = self._session()
         try:
+            query = session.query(AgentRun)
+            if session_id is not None:
+                query = query.filter(AgentRun.session_id == session_id)
             rows = (
-                session.query(AgentRun)
-                .order_by(AgentRun.created_at.desc())
+                query.order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
                 .limit(limit)
                 .all()
             )
@@ -103,6 +114,11 @@ class DatabaseRunStore:
             "mode": row.mode,
             "status": row.status,
             "route": row.route,
+            "session_id": row.session_id,
+            "skill_context": json.loads(row.skill_context_json)
+            if row.skill_context_json
+            else None,
+            "approval_id": row.approval_id,
             "trace": json.loads(row.trace_json) if row.trace_json else None,
             "cost": json.loads(row.cost_json) if row.cost_json else None,
             "created_at": row.created_at.timestamp() if row.created_at else 0,
@@ -338,7 +354,15 @@ class DatabaseApprovalStore:
         finally:
             session.close()
 
-    def finish_execution(self, approval_id: str, token: str, *, success: bool) -> None:
+    def finish_execution(
+        self,
+        approval_id: str,
+        token: str,
+        *,
+        success: bool,
+        result: Optional[str] = None,
+        trace: Optional[Dict[str, Any]] = None,
+    ) -> None:
         from .models import ApprovalRecord
 
         session = self._session()
@@ -351,6 +375,8 @@ class DatabaseApprovalStore:
                 {
                     "execution_status": "completed" if success else "failed",
                     "execution_completed_at": time.time(),
+                    "execution_result": result,
+                    "execution_trace_json": json.dumps(trace),
                 },
                 synchronize_session=False,
             )

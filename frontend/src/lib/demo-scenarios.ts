@@ -59,6 +59,32 @@ export function transitionDemo(state: DemoState, id: string, decision: "approve"
 }
 let state = createDemoState();
 let mode: ProviderMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? "sample" : "connected";
+let sessionId = "default";
+let connectionEpoch = 0;
+const SETTINGS_KEY = "aria-console:v1";
+function persistSettings() {
+  try { sessionStorage.setItem(SETTINGS_KEY, JSON.stringify({ version: 1, mode, sessionId })); } catch { /* Storage may be unavailable; this tab still works. */ }
+}
+export function initializeClientSettings() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(SETTINGS_KEY) || "null");
+    if (saved?.version === 1 && ["sample", "connected"].includes(saved.mode)) {
+      const restoredSession = typeof saved.sessionId === "string" && saved.sessionId.trim() ? saved.sessionId.trim() : "default";
+      if (mode !== saved.mode || sessionId !== restoredSession) {
+        mode = saved.mode; sessionId = restoredSession;
+        connectionEpoch += 1; notify();
+      }
+    }
+  } catch { /* Ignore malformed or unavailable storage. */ }
+}
+export const getSessionId = () => sessionId;
+export const getConnectionEpoch = () => connectionEpoch;
+export function setSessionId(value: string) {
+  const next = value.trim() || "default";
+  if (next === sessionId) return;
+  sessionId = next; connectionEpoch += 1; resetKey += 1; persistSettings(); notify();
+}
+export function notifyConnectedChange() { notify(); }
 let revision = 0;
 let resetKey = 0;
 let guidedStep = -1;
@@ -71,7 +97,7 @@ export const getProviderMode = () => mode;
 export const getGuidedStep = () => guidedStep;
 export const setGuidedStep = (step: number) => { guidedStep = step; notify(); };
 export function resetDemo() { state = createDemoState(); resetKey += 1; guidedStep = -1; notify(); }
-export function setProviderMode(value: ProviderMode) { if (mode === value) return; mode = value; resetDemo(); }
+export function setProviderMode(value: ProviderMode) { if (mode === value) return; mode = value; connectionEpoch += 1; persistSettings(); resetDemo(); }
 export const getDemoState = () => {
   const snapshot = clone(state);
   snapshot.approvals.forEach(approval => { if (approval.status === "pending") approval.seconds_remaining = Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)); });

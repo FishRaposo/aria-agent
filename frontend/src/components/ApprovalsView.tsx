@@ -12,7 +12,7 @@ import PageHeader from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
 import { useDemoRevision } from "@/lib/use-demo";
-import { getProviderMode } from "@/lib/demo-scenarios";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
 import { durationLabel } from "@/lib/format";
 import type { Approval } from "@/types";
 
@@ -37,16 +37,20 @@ export default function ApprovalsView() {
   const [acting, setActing] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.listApprovals(filter || undefined);
+      const res = await api.listApprovals(filter || undefined, getSessionId());
+      if (requestId !== requestSequence.current) return;
       setApprovals(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -55,12 +59,13 @@ export default function ApprovalsView() {
           : "Failed to load approvals"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [filter]);
 
   useEffect(() => {
     load();
+    return () => { requestSequence.current += 1; };
   }, [load, revision]);
 
   const decide = async (id: string, approve: boolean) => {

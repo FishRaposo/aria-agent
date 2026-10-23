@@ -27,3 +27,13 @@ drift and do not authenticate authorship.
 
 Native benchmark reports in `.tmp/` are separately labeled unavailable. Protocol
 success is not native/model success. See [verification](portfolio-verification.md).
+
+## Separate connected evidence bundle
+
+Run the real-process browser suite before `python scripts/verify_connected_evidence.py`.
+It writes `artifacts/portfolio/connected-evidence` with raw synthetic HTTP evidence,
+checksums and a stable semantic summary. This records browser approval, direct
+SQLite effect counts, duplicate rejection and process restart. Skill instructions
+and hashes are inspected together; keyword consumption remains false. The original
+golden fixture and generator are preserved. [Provenance and limits](portfolio-connected.md#reproduce-the-connected-proof)
+explain the fault fixtures and what integrity verification establishes.

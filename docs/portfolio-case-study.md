@@ -93,3 +93,23 @@ reproduce the defect, explain why approving a record is insufficient, add the
 atomic claim and demonstrate zero duplicate effects. Neither engagement should
 promise unrestricted autonomy, universal injection resistance or a model-quality
 improvement that has not been measured.
+
+## Completing the connected application — 2026-10-23
+
+The first portfolio milestone made execution boundaries inspectable, but the live
+application did not yet retain skill/session evidence or reconcile approvals into
+history. A successful sample walkthrough therefore could not establish live
+workflow completeness. This milestone closes that gap: per-run automatic matching,
+packaged canonical sources, immutable snapshots, session-isolated conversation
+memory and authoritative outcome projection now back the visual console.
+
+The interview story is a full lifecycle: calculate, inspect why instructions
+loaded, review exact write arguments, approve once, observe the same outcome in
+history/memory, then restart and inspect the original evidence. Counterexamples
+include rejection, expiry, actual sandbox denial, storage failure and an uncertain
+claim. No case silently turns failure into sample success. Real-process browser
+checks query SQLite effect counts rather than trusting an optimistic dashboard.
+
+This is local credential-free reliability evidence, not measured model quality,
+hosted multi-user readiness or client adoption. [Connected design and setup](portfolio-connected.md)
+and [fresh verification](portfolio-verification.md) provide the concrete review path.

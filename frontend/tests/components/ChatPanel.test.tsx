@@ -63,5 +63,5 @@ it("offers Retry and an explicit sample switch after connected chat failure", as
   await waitFor(() => expect(screen.getByRole("button", { name: "Retry", exact: true })).toBeInTheDocument());
   expect(screen.getByRole("button", { name: "Enter sample demo", exact: true })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Retry", exact: true }));
-  await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(fetchSpy.mock.calls.filter(call => String(call[0]).includes("/agent/chat"))).toHaveLength(2));
 });

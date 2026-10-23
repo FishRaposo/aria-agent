@@ -60,6 +60,8 @@ def approval_to_dict(record: Dict[str, Any]) -> Dict[str, Any]:
         "execution_status": record.get("execution_status"),
         "execution_claimed_at": record.get("execution_claimed_at"),
         "execution_completed_at": record.get("execution_completed_at"),
+        "execution_result": record.get("execution_result"),
+        "execution_trace": deepcopy(record.get("execution_trace")),
     }
 
 
@@ -72,20 +74,28 @@ class InMemoryRunStore:
 
     def save(self, run: Dict[str, Any]) -> Dict[str, Any]:
         with self._lock:
-            self._runs[run["id"]] = run
+            self._runs[run["id"]] = deepcopy(run)
         return run
 
     def get(self, run_id: str) -> Optional[Dict[str, Any]]:
         with self._lock:
             run = self._runs.get(run_id)
-            return dict(run) if run else None
+            return deepcopy(run) if run else None
 
-    def list(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def list(
+        self, limit: int = 50, session_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         with self._lock:
             runs = sorted(
-                self._runs.values(), key=lambda r: r.get("created_at", 0), reverse=True
+                (
+                    r
+                    for r in self._runs.values()
+                    if session_id is None or r.get("session_id") == session_id
+                ),
+                key=lambda r: r.get("created_at", 0),
+                reverse=True,
             )
-        return [dict(r) for r in runs[:limit]]
+        return [deepcopy(r) for r in runs[:limit]]
 
 
 class InMemoryTaskStore:
@@ -231,7 +241,15 @@ class InMemoryApprovalStore:
             record["execution_claimed_at"] = time.time()
             return token
 
-    def finish_execution(self, approval_id: str, token: str, *, success: bool) -> None:
+    def finish_execution(
+        self,
+        approval_id: str,
+        token: str,
+        *,
+        success: bool,
+        result: Optional[str] = None,
+        trace: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """Record an outcome without ever releasing execution ownership."""
         with self._lock:
             record = self._approvals.get(approval_id)
@@ -242,6 +260,8 @@ class InMemoryApprovalStore:
             ):
                 record["execution_status"] = "completed" if success else "failed"
                 record["execution_completed_at"] = time.time()
+                record["execution_result"] = result
+                record["execution_trace"] = deepcopy(trace)
 
     @staticmethod
     def _maybe_expire(record: Dict[str, Any]) -> None:

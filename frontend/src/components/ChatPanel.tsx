@@ -11,16 +11,17 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
-import { FIXTURE_PROMPTS, getProviderMode, getDemoState, setProviderMode } from "@/lib/demo-scenarios";
+import { FIXTURE_PROMPTS, getProviderMode, getDemoState, setProviderMode, getSessionId, getConnectionEpoch, notifyConnectedChange } from "@/lib/demo-scenarios";
 import { useDemoRevision } from "@/lib/use-demo";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
 import DemoBadge from "@/components/DemoBadge";
 import PageHeader from "@/components/PageHeader";
 import { api, ApiError } from "@/lib/api";
+import { readableResult } from "@/lib/result-display";
 import { formatCost, formatMs } from "@/lib/format";
-import type { AgentMode, ChatResponse, TraceEntry } from "@/types";
+import type { AgentMode, AgentRun, ChatResponse, HealthResponse, TraceEntry } from "@/types";
 
 interface Turn {
   id: string;
@@ -40,17 +41,43 @@ function toolCalls(entries: TraceEntry[]) {
 }
 
 export default function ChatPanel() {
-  useDemoRevision();
+  const revision = useDemoRevision();
   const sample = getProviderMode() === "sample";
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<AgentMode>("approval_gated");
   const [busy, setBusy] = useState(false);
   const idRef = useRef(0);
+  const [runtime, setRuntime] = useState<HealthResponse["runtime"]>();
+  const [historyError, setHistoryError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const historySequence = useRef(0);
+  const loadHistory = useCallback(async () => {
+    if (getProviderMode() === "sample") return;
+    const requestId = ++historySequence.current;
+    setHistoryLoading(true);
+    try {
+      const history = await api.listRuns(50, getSessionId());
+      if (requestId !== historySequence.current) return;
+      const saved: Turn[] = [...history.data].reverse().map((run: AgentRun) => ({ id: run.id, query: run.query, pending: false, response: { run_id: run.id, query: run.query, response: run.response, reply: run.response, mode: run.mode, status: run.status, route: run.route, approval: run.approval || null, trace: run.trace, cost: run.cost } }));
+      setTurns(previous => [...saved, ...previous.filter(turn => turn.pending || turn.error)]);
+      setHistoryError("");
+    } catch (error) { if (requestId === historySequence.current) setHistoryError(error instanceof Error ? error.message : "History unavailable"); }
+    finally { if (requestId === historySequence.current) setHistoryLoading(false); }
+  }, []);
+  useEffect(() => { if (!sample) loadHistory(); return () => { historySequence.current += 1; }; }, [loadHistory, sample, revision]);
+  useEffect(() => {
+    if (sample) return;
+    let active = true;
+    api.health().then(response => { if (!active) return; setRuntime(response.data.runtime); if (response.data.runtime) setMode(response.data.runtime.agent_mode); }).catch(() => {});
+    return () => { active = false; };
+  }, [sample]);
+  useEffect(() => { if (!sample) { const prompt = new URLSearchParams(window.location.search).get("prompt"); if (prompt) setInput(prompt); } }, [sample]);
 
   const send = async (retryMessage?: string) => {
     const message = (retryMessage ?? input).trim();
     if (!message || busy) return;
+    const epoch = getConnectionEpoch();
     setInput("");
     setBusy(true);
     idRef.current += 1;
@@ -61,12 +88,14 @@ export default function ChatPanel() {
     ]);
 
     try {
-      const res = await api.chat({ message, mode, session_id: "default" });
+      const res = await api.chat({ message, mode, session_id: getSessionId() });
+      if (epoch !== getConnectionEpoch()) return;
       setTurns((prev) =>
         prev.map((t) =>
           t.id === turnId
             ? {
                 ...t,
+                id: res.data.run_id,
                 response: res.data,
                 pending: false,
                 demo: res.demo,
@@ -76,7 +105,9 @@ export default function ChatPanel() {
             : t
         )
       );
+      if (!res.demo) notifyConnectedChange();
     } catch (err) {
+      if (epoch !== getConnectionEpoch()) return;
       const msg =
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -102,17 +133,19 @@ export default function ChatPanel() {
           <label className="flex items-center gap-2 text-sm text-ink-400">
             Mode
             <select
+              disabled={!sample && (!runtime || runtime.allowed_modes.length === 1)}
               value={mode}
               onChange={(e) => setMode(e.target.value as AgentMode)}
               className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-100 outline-none focus:border-brand-500"
             >
-              <option value="free_running">free-running</option>
+              <option disabled={!sample && !runtime?.allowed_modes.includes("free_running")} value="free_running">free-running</option>
               <option value="approval_gated">approval-gated</option>
             </select>
           </label>
         }
       />
 
+      {!sample && <div className="card mb-4 space-y-3"><p className="text-sm text-ink-200">Session: <span className="mono">{getSessionId()}</span></p><p className="text-xs text-ink-400">{runtime ? `${runtime.routing_mode} routing · ${runtime.skill_selection_mode} skill matching · ${runtime.persistence} persistence` : "Runtime metadata unavailable. Requests still report their own connection errors."}</p>{runtime?.allowed_modes.length === 1 && <p className="text-xs text-amber-200">Strict deployment: approval-gated mode is required by the backend.</p>}<p className="text-xs text-ink-400">Credential-free keyword routing supports tool requests, not open-ended conversation. Quick starts prepare a message; you choose when to send.</p><div className="flex flex-wrap gap-2" aria-label="Connected quick starts">{["What is 1450 * 32?", "Draft an email to ops@example.test", "Create a task review the incident", "read ../outside.txt"].map(prompt => <button key={prompt} className="btn-secondary text-xs" onClick={() => setInput(prompt)}>{prompt}</button>)}</div><button onClick={loadHistory} className="text-xs text-brand-200" disabled={historyLoading}>Refresh history</button>{historyError && <p role="status" className="text-xs text-rose-300">Saved history unavailable: {historyError}</p>}</div>}
       {sample && <div className="mb-4 flex flex-wrap gap-2" aria-label="Fixture prompts">{FIXTURE_PROMPTS.map(prompt => <button key={prompt} className="btn-secondary text-xs" onClick={() => setInput(prompt)}>{prompt}</button>)}</div>}
       <div
         data-testid="chat-thread"
@@ -132,7 +165,7 @@ export default function ChatPanel() {
               ,{" "}
               <button
                 className="text-brand-300 underline-offset-2 hover:underline"
-                onClick={() => setInput("Inspect the unauthorized repository instruction")}
+                onClick={() => setInput(sample ? "Inspect the unauthorized repository instruction" : "read ../outside.txt")}
               >
                 an unauthorized action
               </button>
@@ -143,7 +176,7 @@ export default function ChatPanel() {
               >
                 an email draft
               </button>{" "}
-              (the sample always enforces its permission boundary).
+              {sample ? "(the sample always enforces its permission boundary)." : "(live requests run against the configured backend boundary)."}
             </p>
           </div>
         ) : (
@@ -231,10 +264,11 @@ function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: 
             <>
               <div className="rounded-2xl rounded-tl-sm border border-ink-800 bg-ink-900 px-4 py-2.5 text-sm text-ink-100">
                 <div className="prose prose-invert prose-sm max-w-none prose-p:my-1">
-                  <ReactMarkdown>{res.reply || res.response}</ReactMarkdown>
+                  <ReactMarkdown>{readableResult(res.reply || res.response)}</ReactMarkdown>
                 </div>
               </div>
 
+              {!turn.demo && <Link href={`/runs/${res.run_id}`} className="inline-block text-xs text-brand-200">Inspect execution timeline →</Link>}
               {/* loop / tool calls */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <StatusBadge status={res.status} />

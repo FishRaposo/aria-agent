@@ -108,9 +108,10 @@ error occurred. This is real local API/store/tool evidence, not sample playback.
 | [Actual connected result](images/portfolio-connected.png) | Local task effect, completed execution, no simulation label |
 
 Accessibility checks are bounded browser/visual/keyboard checks; no formal
-screen-reader or full WCAG conformance audit is claimed. The current connected
-backend has no `/skills` snapshot endpoint; that route shows a real404 error and
-does not substitute the sample skill catalog. Native setup uses its own fixture.
+screen-reader or full WCAG conformance audit is claimed. At the first milestone
+the connected skills endpoint was absent and failed honestly. The subsequent
+[connected milestone](portfolio-connected.md) supplies actual saved evidence;
+fresh results below supersede that gap. Native setup uses its own fixture.
 
 ## Review and remaining boundaries
 
@@ -132,3 +133,118 @@ No public hosting, publication, recording, paid provider usage, native account
 access, real secret fixture, customer artifact or cash receipt was introduced.
 Other five application working trees remain outside this milestone. IDs:
 AR-01–AR-06, existing FTH-016; no opportunity/experiment/cash ledger change.
+
+## Connected application milestone — 2026-10-23
+
+Base `913fefaf1b18033f597be46fa2c1a95f80703731`, same `feat/aria-portfolio`
+branch. This section supersedes the first milestone's missing connected-skills
+endpoint. [Connected setup/design/proof](portfolio-connected.md) is the current
+live workflow; earlier results above remain historical evidence.
+
+| Gate | Fresh result / retained command evidence |
+| --- | --- |
+| Full Python | 354 passed, 1 host symlink skip, 0 failures/errors; JUnit355 collected, `.tmp/connected-final-python.xml` |
+| Focused skills without conftest | 32 passed (`tests/test_skills.py tests/test_connected_skills.py`); subset of full suite |
+| Backend integration | 135 passed across connected/API/approvals/stores/boundaries; 29 connected cases, subset |
+| Ruff | Check passed; 91 Python files format-clean, including setup hook |
+| Pyright | 0 errors, 0 warnings using the absolute project interpreter |
+| Canonical evidence | Original golden preserved; generator/verifier and strict proof pass |
+| Connected evidence | Separate real HTTP/browser/SQLite bundle verifies, including recorded body SHA256 and outcome uniqueness |
+| Packaging | Fresh sdist/wheel build and five canonical wheel assets pass; fresh dependency environment passes pip check |
+| Installed wheel | Outside-checkout `-I` probe imports isolated package, discovers5, activates calculator and reads actual API catalog/runtime metadata |
+| Frontend unit/lint | 64 passed in17 files; lint clean |
+| Production build | All11 routes built with isolated `NEXT_DIST_DIR=.next-connected-build` |
+
+Final Python command:
+` .venv/Scripts/python.exe -m pytest -q --basetemp=.pytest-temp/connected-final-2 --junitxml=.tmp/connected-final-python.xml `.
+The same upstream Starlette/httpx deprecation and Windows symlink capability limit
+remain explicit. A first concurrent full run misclassified two native crash/
+malformed probes because interpreter startup exceeded their shared100ms budget.
+Their non-timeout probes now allow2s; the deliberate timeout case retains100ms.
+The focused suite and full355-collected suite then passed. No native/model trial ran.
+
+The first connected API regression had20 failing behavior assertions. Automatic
+skills tests exposed empty selection and actual sandbox escape dispatch. A real
+process metadata test failed on an empty catalog, then passed with5. Supplemental
+fault/evidence cases were added after the initial implementation; they are not
+misrepresented as initial red-first cycles. New evidence-gate tests reject raw
+observation tampering, resealed false effect counts and body/hash disagreement.
+
+Browser verification found and repaired issues that source/unit checks missed:
+changing sessions remounted Next's route tree, the skip link did not focus main,
+Setup's implicit mobile grid overflowed, and live monotonic timestamps caused
+trace bars to exceed their tracks. Navigation has a red/green component regression;
+chart overflow reproduced150% combined offset/width and now passes. Independent
+trace clocks scale separately; raw times remain available. Draft JSON now has a
+readable presentation without altering exact backend evidence.
+
+The live harness builds and starts production Next.js before testing actual API
+processes. Development hot reload had produced RSC fetch errors when separate
+builds changed shared generated type files; final verification uses a frozen
+production artifact and no concurrent frontend builds. This is a harness/process
+isolation correction, not a console-error suppression. Only intentional connection
+refusal in the outage case is classified as expected. All other console/page
+errors remain failures.
+
+Bounded independent source review found no remaining actionable issue, including
+a focused re-review of session navigation, leaf resets and draft presentation.
+The screenshot-driven chart fix has its own focused/full frontend verification.
+No hosted CI, PostgreSQL deployment, arbitrary power-loss guarantee, native/model
+quality, public authentication or formal accessibility certification is claimed.
+
+The canonical operation overview guard passes. Its broad validator now reports784
+errors across archives, cloned repositories, environments/build outputs and skill
+placement in independent nested repositories. This is not an ARIA gate. The parent
+copy-all unit harness is not rerun in this milestone because it copies complete
+clones/dependency environments; its earlier interrupted result remains unverified.
+The scoped portfolio documentation/link/number checker passes. Parent has no Git
+repository; its index/handoff changes cannot receive a parent commit. No receipt,
+opportunity or experiment was added; cash remains unknown.
+
+### Final browser and visual results
+
+Production real-backend command from `frontend/`:
+`npm run test:e2e -- --config playwright.live.config.ts --project=chromium`
+passed **10/10**. It migrates a fresh SQLite database, uses actual FastAPI and a
+production Next process, clears credentials and validates HTTP/SQLite effects.
+Calculation → automatic skill inspection → task approval → completed Chat/Run/
+Memory → separate session → API restart passes. Draft quick start makes no request
+until Send; keyboard approval records drafted/sent=false. Rejection, actual1s
+expiry, real sandbox escape denial, actual SQL insertion failure, seeded uncertain
+claim, SSE and historical unknowns pass. Duplicate approval returns409; one task
+is created only in the authorized case. Repeated memory reads remain identical.
+
+All connected routes (`/`, Chat, Runs/detail, Skills, Memory, Tools, Approvals,
+Setup) pass at390×844,768×1024,1440×900 with reduced motion, no document overflow,
+no nav-container clipping and no unexplained console/page errors. Keyboard skip
+focus and draft approval pass. Actual API shutdown → error → restart → Retry
+recovers; explicit sample switching stops backend calls. View selectors and
+underlying records both participate in assertions; no successful API response is
+mocked. Final output: `.tmp/connected-live-final.log`.
+
+After the shared chart repair, the forced sample command passed **13/13** again;
+its guided/free/reset/rejection/expiry and no-backend assertions remain intact.
+The original `PLAYWRIGHT_CONNECTED=true` outage suite on3101 passed **2/2** again.
+Logs: `.tmp/connected-sample-final.log` and `.tmp/connected-outage-final.log`.
+The 64 frontend tests and production build also passed after the chart repair.
+
+Eight new screenshots were captured and visually inspected; original screenshots
+were preserved. This is bounded visual/keyboard QA, not a formal screen-reader audit.
+
+| Screenshot | Verified view |
+| --- | --- |
+| [Connected desktop](images/connected-home-1440.png) | Live workspace, runtime metadata, clear sample entry |
+| [Connected tablet](images/connected-home-768.png) | Navigation and live controls fit |
+| [Connected mobile](images/connected-home-390.png) | Stacked live workflow and explicit sample boundary |
+| [Skills desktop](images/connected-skills-1440.png) | Selected run, reason, immutable hash/body and5-skill catalog |
+| [Skills tablet](images/connected-skills-768.png) | Same evidence and readable controls |
+| [Skills mobile](images/connected-skills-390.png) | Wrapped metadata/hash and scrollable exact instructions |
+| [Completed execution](images/connected-completed.png) | Actual result, approval and trace bars within tracks |
+| [Actual memory](images/connected-memory.png) | Originating conversation plus one final outcome event |
+
+A separate production review console is available at `http://localhost:3102`
+with API8100 and fresh `.tmp/connected-review-20261023/app.db`. It contains a
+synthetic completed calculation and pending task request (no task write executed).
+The review approval timeout is3600s; later expiry is normal. Existing8000/3200
+processes and their database were not reused. Recreate this local review session
+using the setup guide; these are local process endpoints, not public hosting.

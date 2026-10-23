@@ -1,13 +1,13 @@
 "use client";
 
 import { Bot, Database, RefreshCw, User } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import PageHeader from "@/components/PageHeader";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
 import { useDemoRevision } from "@/lib/use-demo";
-import { getProviderMode } from "@/lib/demo-scenarios";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
 import type { MemoryMessage } from "@/types";
 
 export default function MemoryView() {
@@ -18,18 +18,22 @@ export default function MemoryView() {
   const [demo, setDemo] = useState(false);
   const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
-  const [session, setSession] = useState("default");
+  const session = getSessionId();
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.getMemory(session);
+      const res = await api.getMemory(getSessionId());
+      if (requestId !== requestSequence.current) return;
       setMessages(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -38,12 +42,13 @@ export default function MemoryView() {
           : "Failed to load memory"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [session]);
+  }, []);
 
   useEffect(() => {
     load();
+    return () => { requestSequence.current += 1; };
   }, [load, revision]);
 
   const userCount = messages.filter((m) => m.role === "user").length;
@@ -52,20 +57,12 @@ export default function MemoryView() {
     <div>
       <PageHeader
         title="Memory inspector"
-        description="The conversation memory the agent carries across turns within a session. Built from persisted run history."
+        description="The conversation memory the agent carries across turns within a session. Read directly from the backend conversation store for the selected session."
         demo={demo}
         demoForced={demoForced}
         demoReason={demoReason}
         actions={
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm text-ink-400">
-              Session
-              <input
-                value={session}
-                onChange={(e) => setSession(e.target.value)}
-                className="w-32 rounded-lg border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-100 outline-none focus:border-brand-500"
-              />
-            </label>
             <button onClick={load} className="btn-secondary" disabled={loading}>
               <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
               Refresh

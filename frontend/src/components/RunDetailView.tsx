@@ -2,16 +2,17 @@
 
 import { ArrowLeft, Brain, GitBranch, Wrench } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
 import CostSummaryCard from "@/components/CostSummaryCard";
 import PageHeader from "@/components/PageHeader";
 import { ErrorState, LoadingSkeleton } from "@/components/States";
+import ConnectedDecisionStory from "@/components/ConnectedDecisionStory";
 import DecisionStory from "@/components/DecisionStory";
 import TraceTimeline from "@/components/TraceTimeline";
 import { api, ApiError } from "@/lib/api";
 import { useDemoRevision } from "@/lib/use-demo";
-import { getProviderMode } from "@/lib/demo-scenarios";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
 import { formatClock, formatMs } from "@/lib/format";
 import type { AgentRun, TraceEntry } from "@/types";
 
@@ -57,16 +58,20 @@ export default function RunDetailView({ runId }: { runId: string }) {
   const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.getRun(runId);
+      const res = await api.getRun(runId, getSessionId());
+      if (requestId !== requestSequence.current) return;
       setRun(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -75,12 +80,13 @@ export default function RunDetailView({ runId }: { runId: string }) {
           : "Failed to load run"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, [runId]);
 
   useEffect(() => {
     load();
+    return () => { requestSequence.current += 1; };
   }, [load, revision]);
 
   return (
@@ -105,15 +111,15 @@ export default function RunDetailView({ runId }: { runId: string }) {
             demoForced={demoForced}
             demoReason={demoReason}
             actions={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2"><button className="btn-secondary" onClick={load}>Refresh run</button>
                 <StatusBadge status={run.status} />
                 <ModeBadge mode={run.mode} />
               </div>
             }
           />
 
-          {demo && <DecisionStory run={run} />}
-          <details className="card" open={!demo}><summary className="cursor-pointer text-sm font-medium text-ink-200">Technical run record</summary><div className="mt-4">
+          {demo ? <DecisionStory run={run} /> : <ConnectedDecisionStory run={run} />}
+          <details className="card"><summary className="cursor-pointer text-sm font-medium text-ink-200">Technical run record</summary><div className="mt-4">
             <div className="mb-1 text-xs uppercase tracking-wide text-ink-600">
               Query
             </div>

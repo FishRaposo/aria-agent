@@ -20,6 +20,16 @@ def main() -> int:
         "aria/internal/vendor_core/tracing.py",
         "aria/internal/core/engine.py",
     }
+    required.update(
+        f"aria/_skills/{name}/SKILL.md"
+        for name in (
+            "calculator",
+            "task-creator",
+            "email-draft",
+            "file-reader",
+            "web-search",
+        )
+    )
     missing = sorted(required - names)
     if missing:
         print("wheel missing: " + ", ".join(missing), file=sys.stderr)

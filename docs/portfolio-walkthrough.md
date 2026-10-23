@@ -54,7 +54,8 @@ not make the API suitable for public exposure.
 For existing SQL installations, back up the development database, configure the
 same database URL used by the server, then run `alembic upgrade head` before
 starting this version. Migration `0002_approval_execution_claim` adds binding and
-execution metadata. Table creation alone does not alter old tables. Old unbound
+execution metadata; `0003_connected_app` adds session/skill snapshots, results/traces
+and durable memory event keys. Table creation alone does not alter old tables. Old unbound
 approval rows fail closed and require a fresh request. In-memory state is lost
 on process exit; it is not durable restart evidence. Automated restart tests use
 an actual file-backed SQLite database; PostgreSQL deployment remains unverified.
@@ -74,3 +75,17 @@ model, isolation evidence and budget only if native trials are later authorized.
 
 Recording/uploading/hosting is outside this implementation. This text is the
 recording script; no video recording is claimed.
+
+## Connected application review path — 2026-10-23
+
+Use the [complete strict SQLite setup](portfolio-connected.md) for the current
+application. It applies migration0003, clears provider credentials, forces keyword
+routing, sets the sandbox and launches the actual API/console. The older minimal
+memory-only command above remains supported, but does not establish durability.
+
+For a three-minute live review: choose a session; calculate and inspect automatic
+skill selection; create a task, review exact arguments and approve once; inspect
+updated Chat/Runs/Memory; reject another proposal and try the actual file boundary.
+Reload with the same session, then restart the API against the same SQLite file.
+Skill bodies/hashes and final approval outcomes must remain inspectable. Show the
+explicit outage/retry and sample switch without presenting a fixture as live data.

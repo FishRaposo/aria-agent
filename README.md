@@ -14,6 +14,11 @@ interactive sample data; reset restores the scenario. No credentials required.
 [coding-agent setup fixture](examples/coding_agent_setup/README.md) ·
 [baseline](docs/portfolio-baseline.md) · [verification](docs/portfolio-verification.md).
 
+**Run the connected application:** [strict SQLite setup and review path](docs/portfolio-connected.md).
+Connected Chat, Runs, Skills, Approvals and Memory share a selected session and
+saved execution evidence. Five shipped skills match automatically; the Skills
+view explains selection and preserves the exact historical instructions.
+
 The setup fixture has credential-free protocol tests and a reproducible native
 benchmark runner. Native Claude Code trials remain unavailable; no model-quality
 improvement is claimed. The preview simulates actions; Python tests execute actual
@@ -21,8 +26,8 @@ local tools and API/store paths.
 
 ![ARIA recruiter preview: inspect a request, review the action, and follow its outcome](docs/images/portfolio-home-1440.png)
 
-Local verification: **302 Python tests passed, 1 host skip; 43 frontend tests;
-13 sample and 2 connected browser tests**. See the dated
+Local verification results and the separate sample/real-process browser gates
+are recorded in the dated
 [verification record](docs/portfolio-verification.md) for commands and limits.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?logo=python&logoColor=white)
@@ -49,7 +54,9 @@ are optional integration surfaces; none is required to run the suite.
 - AgentTrace-compatible spans, cost summaries, replay with dry-run default, and
   ordered SSE events at `POST /agent/chat/stream`.
 - A pure-Python hashed-vector memory index at `GET /agent/memory/search`.
-- Progressive-disclosure Agent Skills with explicit activation and trust rules.
+- Five packaged API skills with automatic matching, explicit overrides and
+  immutable per-run evidence; explicit library activation defaults preserved.
+- Session-isolated conversation history and durable approval outcome recovery.
 - A self-contained vendored compatibility subset under
   `src/aria/internal/vendor_core/`, pinned and attributed in
   `THIRD_PARTY_NOTICES.md`.
@@ -102,11 +109,13 @@ reconcile the outcome first. See [security](docs/security.md).
 | POST | `/agent/chat/stream` | Stream ordered reasoning, decision, approval, tool, error, and completion events as SSE |
 | GET | `/agent/runs` | List recent persisted or in-memory runs |
 | GET | `/agent/runs/{id}` | Fetch a run with trace and cost |
+| GET | `/skills?session_id=default&run_id=...` | Inspect current catalog and selected saved skill evidence |
+| GET | `/agent/memory?session_id=default&limit=50` | Read actual session conversation memory |
 | POST | `/agent/runs/{id}/replay` | Replay a trace; dry-run is the default |
 | GET | `/agent/memory/search` | Inspect deterministic local memory matches |
 | GET/POST | `/approvals...` | Inspect and decide approval-queue records; optional `/approvals/sweep` |
 | GET | `/tools...` | Inspect registered tools and schemas |
-| GET | `/health` | Report database/Redis dependency health |
+| GET | `/health` | Report dependency health and safe execution/routing/persistence capabilities |
 
 Existing response keys, route vocabulary, approval lifecycle, cost numbers, and
 trace span vocabulary remain stable. New execution metadata is additive.
@@ -130,6 +139,9 @@ npm run lint
 npm run build
 npx playwright install chromium
 npm run test:e2e -- --project=chromium
+npm run test:e2e -- --config playwright.live.config.ts --project=chromium
+# From the repository root after the real-process browser suite:
+# python scripts/verify_connected_evidence.py
 ```
 
 ### Verified snapshot — 2026-08-14

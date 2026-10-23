@@ -81,6 +81,8 @@ export interface Approval {
   execution_status?: "claimed" | "completed" | "failed" | null;
   execution_claimed_at?: number | null;
   execution_completed_at?: number | null;
+  execution_result?: string | null;
+  execution_trace?: TraceSummary | null;
 }
 
 /** A persisted agent run (run_store.save payload / get_run response). */
@@ -94,6 +96,9 @@ export interface AgentRun {
   trace: TraceSummary;
   cost: CostSummary;
   created_at: number;
+  session_id?: string | null;
+  skill_context?: Record<string, unknown> | null;
+  approval?: Approval | null;
 }
 
 /** POST /agent/chat response (RunResult.to_dict + reply alias). */
@@ -161,6 +166,7 @@ export interface HealthResponse {
   status: string;
   service: string;
   dependencies?: Record<string, string>;
+  runtime?: { agent_mode: AgentMode; allowed_modes: AgentMode[]; routing_mode: string; skill_selection_mode: string; persistence: string; skills_available: boolean };
 }
 
 /** A conversation message rendered in the chat panel. */
@@ -189,13 +195,20 @@ export interface ActivatedSkill {
   loaded: boolean;
   instructions: string;
   activation_command?: string;
+  content_hash?: string;
+  selection_method?: "automatic" | "explicit";
+  selection_reason?: string;
 }
 
 /** Snapshot of progressive-disclosure skill state for the console. */
 export interface SkillsSnapshot {
+  session_id?: string;
+  run_id?: string | null;
+  context_available?: boolean;
   catalog: SkillCatalogEntry[];
   activated: ActivatedSkill[];
   context_report: {
+    context_consumed?: boolean;
     visible_skill_count: number;
     eager_hints_used: boolean;
     loaded_instruction_bodies: Array<{

@@ -39,3 +39,19 @@ all 72 scoped files format-clean, and Pyright reported 0 errors.
 The frontend passed 31 Vitest tests, ESLint, and a production build. On
 2026-08-15, all six Playwright smoke tests passed locally in Chromium. CI
 installs Chromium explicitly before running the same suite.
+
+## Connected regression gates (2026-10-23)
+
+`tests/test_connected_skills.py` covers all tool matches, explicit/unmatched and
+bounded multi-step selection, concurrent session isolation, invalid/escaped
+sources and historical body/hash preservation. `tests/test_connected_application.py`
+covers actual HTTP handlers, migrated SQLite, skill snapshots, sessions, approval
+results/traces, once-only memory and restart recovery. `tests/test_connected_evidence.py`
+rejects tampering and resealed false claims.
+
+From frontend, run `npm run test:e2e -- --config playwright.live.config.ts --project=chromium`.
+This uses real dedicated processes and a disposable migrated database with no
+successful-response mocks. It does not use the owner's database or credentials.
+See [connected proof](portfolio-connected.md#reproduce-the-connected-proof) and the
+[current verification record](portfolio-verification.md). Sample tests remain a
+separate no-backend gate. Native trials and hosted CI remain separate/unverified.

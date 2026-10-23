@@ -14,7 +14,9 @@ from loguru import logger
 from pydantic import ValidationError
 
 from ...approvals import ApprovalGate
+from ...builtin_tools.file_reader import _resolve_within_sandbox
 from ...routing import RouteDecision
+from ...skills import SkillValidationError
 from ...store import ApprovalStatus
 from ...tools import ToolRegistry
 from ...tracing import TraceLog
@@ -94,6 +96,13 @@ class AgentEngine:
             raise ApprovalExecutionDenied(
                 f"Invalid arguments for '{action}': {exc}"
             ) from exc
+        if action == "file_reader":
+            try:
+                _resolve_within_sandbox(arguments["filepath"])
+            except (PermissionError, OSError, ValueError) as exc:
+                raise ApprovalExecutionDenied(
+                    "Path escapes or cannot resolve inside the sandbox directory"
+                ) from exc
 
     def run_structured(
         self,
@@ -118,8 +127,27 @@ class AgentEngine:
         context = base_context
         route_query = user_query
         context_consumed = False
+        self._skill_context_consumed = False
         if self.skill_session is not None:
-            prepared = self.skill_session.prepare_turn(user_query, context)
+            try:
+                prepared = self.skill_session.prepare_turn(user_query, context)
+            except SkillValidationError:
+                response = (
+                    "Blocked: selected skill instructions are unavailable or invalid."
+                )
+                trace.add_decision("skill_loading_denied", response)
+                self.memory.add_message("system", response)
+                self._emit(RunEventType.ERROR, {"reason": response})
+                self._emit(RunEventType.COMPLETE, {"status": "blocked"})
+                return self._finish(
+                    user_query,
+                    "blocked",
+                    RouteDecision(tool=None, strategy="skills", rationale=response),
+                    trace,
+                    cost_tracker,
+                    response,
+                    None,
+                )
             route_query = prepared.query
             context = prepared.context
 
@@ -149,6 +177,7 @@ class AgentEngine:
             )
 
         decisions, context_consumed = self._plan(route_query, context, cost_tracker)
+        self._skill_context_consumed = context_consumed
         first_decision = (
             decisions[0]
             if decisions
@@ -384,7 +413,11 @@ class AgentEngine:
         )
         if token is not None and approval_id is not None:
             self.approval_gate.store.finish_execution(
-                approval_id, token, success=status == "completed"
+                approval_id,
+                token,
+                success=status == "completed",
+                result=result,
+                trace=trace.summary(),
             )
         return result
 
@@ -526,6 +559,7 @@ class AgentEngine:
                     int(telemetry.get("output_tokens", 0)),
                     float(telemetry.get("latency_ms", 0.0)),
                 )
+                self._skill_context_consumed = True
                 return result["response"]
             except Exception:  # noqa: BLE001 - fall through to canned reply
                 pass
@@ -541,6 +575,10 @@ class AgentEngine:
         response: str,
         approval: Optional[Dict[str, Any]],
     ) -> EngineOutcome:
+        if self.skill_session is not None and hasattr(
+            self.skill_session, "context_consumed"
+        ):
+            self.skill_session.context_consumed = self._skill_context_consumed
         skill_context = (
             self.skill_session.report().to_dict()
             if self.skill_session is not None

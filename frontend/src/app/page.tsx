@@ -1,17 +1,21 @@
 "use client";
+import ConnectedWorkspace from "@/components/ConnectedWorkspace";
+import { useDemoRevision } from "@/lib/use-demo";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowRight, Check, ChevronRight, Fingerprint, LockKeyhole, Play, ShieldCheck, Terminal } from "lucide-react";
-import { setProviderMode, setGuidedStep, SAFE_RUN, DRAFT_RUN, DENIED_RUN } from "@/lib/demo-scenarios";
+import { getProviderMode, setProviderMode, setGuidedStep, SAFE_RUN, DRAFT_RUN, DENIED_RUN } from "@/lib/demo-scenarios";
 const STORIES = [
   { number: "01", title: "Safe by design", subtitle: "Validate. Permit. Calculate.", label: "Completed", href: `/runs/${SAFE_RUN}`, color: "safe", icon: Check },
   { number: "02", title: "Your decision matters", subtitle: "A draft waits for your review.", label: "Needs approval", href: `/runs/${DRAFT_RUN}`, color: "review", icon: Fingerprint },
   { number: "03", title: "A boundary that holds", subtitle: "Untrusted instructions are denied.", label: "Not executed", href: `/runs/${DENIED_RUN}`, color: "denied", icon: LockKeyhole },
 ];
 export default function HomePage() {
+  useDemoRevision();
   const router = useRouter();
   const openSample = (event: React.MouseEvent<HTMLAnchorElement>, href: string, guided = false) => { event.preventDefault(); setProviderMode("sample"); if (guided) setGuidedStep(0); router.push(href); };
   return <div className="landing">
+    {getProviderMode() === "connected" && <ConnectedWorkspace />}
     <section className="hero-grid">
       <div className="hero-copy">
         <p className="eyebrow flex items-center gap-2 text-brand-300"><span className="h-1.5 w-1.5 rounded-full bg-brand-300" />ARIA / CONTROLLED AGENT EXECUTION</p>

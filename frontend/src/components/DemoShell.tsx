@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Database, RotateCcw, ShieldCheck, X } from "lucide-react";
-import { getProviderMode, getResetKey, getGuidedStep, setGuidedStep, resetDemo, setProviderMode, tickDemo, SAFE_RUN, DRAFT_RUN, DENIED_RUN } from "@/lib/demo-scenarios";
+import { getProviderMode, getResetKey, getGuidedStep, setGuidedStep, resetDemo, setProviderMode, tickDemo, SAFE_RUN, DRAFT_RUN, DENIED_RUN, initializeClientSettings, getSessionId, setSessionId } from "@/lib/demo-scenarios";
 import { useDemoRevision } from "@/lib/use-demo";
 const STEPS = [
   { title: "A safe action can run", body: "Inspect the validated expression, permission decision, and result. Every decision has a place in the timeline.", href: `/runs/${SAFE_RUN}`, next: `/runs/${DRAFT_RUN}` },
@@ -17,12 +17,16 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const mode = getProviderMode(); const step = getGuidedStep();
   const resetVersion = getResetKey();
+  const [ready, setReady] = useState(false);
+  const [sessionDraft, setSessionDraft] = useState("default");
+  useEffect(() => { initializeClientSettings(); setSessionDraft(getSessionId()); setReady(true); }, []);
   const [notice, setNotice] = useState("");
   const [paused, setPaused] = useState(false);
   const resetRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { setPaused(false); }, [resetVersion]);
   useEffect(() => { const timer = setInterval(() => tickDemo(), 1000); return () => clearInterval(timer); }, []);
   useEffect(() => { setNotice(""); }, [pathname]);
+  if (!ready) return <p role="status" className="p-6 text-sm text-ink-400">Preparing console…</p>;
   return <>
     <div className="demo-toolbar">
       <div className="demo-toolbar-inner">
@@ -31,7 +35,9 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
           {mode === "sample" ? "Interactive sample data" : "Connected API mode"}
           <span className="hidden font-normal text-ink-400 md:inline">{mode === "sample" ? "Tab-local simulation · no backend calls" : "Transport errors are shown explicitly"}</span>
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {mode === "connected" && <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); setSessionId(sessionDraft); setSessionDraft(getSessionId()); setNotice(`Session ${getSessionId()} selected.`); }}><label className="text-xs text-ink-400">Session<input aria-label="Session" className="ml-2 w-28 rounded border border-ink-700 bg-ink-950 px-2 py-1 text-ink-100" value={sessionDraft} maxLength={100} onChange={event => setSessionDraft(event.target.value)} /></label><button className="text-xs text-brand-200">Use session</button></form>}
+
           <button className="text-xs text-ink-300 hover:text-white" onClick={() => { setProviderMode(mode === "sample" ? "connected" : "sample"); setNotice(mode === "sample" ? "Connected API selected." : "Sample demo selected."); }}>{mode === "sample" ? "Connect API" : "Enter sample demo"}</button>
           {mode === "sample" && <button ref={resetRef} className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-200" onClick={() => { resetDemo(); setNotice("Demo reset. All scenarios restored."); requestAnimationFrame(() => resetRef.current?.focus()); }}><RotateCcw className="h-3.5 w-3.5" />Reset demo</button>}
         </div>
@@ -49,6 +55,6 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
       </div>
       <div className="mt-3 flex gap-1" aria-hidden="true">{STEPS.map((_, i) => <span key={i} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-brand-400" : "bg-ink-700"}`} />)}</div>
     </aside>}
-    <div key={`${mode}-${getResetKey()}`}>{children}</div>
+    <div>{children}</div>
   </>;
 }

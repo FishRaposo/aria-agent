@@ -30,8 +30,8 @@ created exactly one synthetic task in `.tmp/connected-demo.db`.
 
 Limits: no native Claude runtime/model trial, no PostgreSQL deployment/power-loss
 test, no new hosted CI, no formal full accessibility audit. Local Python3.12/Node24
-differs from CI3.11/Node20. The connected backend currently has no skills snapshot
-endpoint and displays that error honestly. The broader operation validator scans
+differs from CI3.11/Node20. The first milestone lacked a connected skills snapshot
+endpoint; the subsequent connected milestone below supersedes that gap. The broader operation validator scans
 archives/dependencies/fixtures and remains failing; its large copy-all unit harness
 was interrupted. These do not alter the passing ARIA-specific checks.
 
@@ -44,3 +44,41 @@ portfolio milestone from the parent index; no sibling is required to run ARIA.
 IDs: AR-01–AR-06 / existing FTH-016. No new opportunity/experiment, ledger edit or
 cash receipt. Cash status unknown. The parent operation handoff records the exact
 delivery commit and stable numbering01–06 separately from ranking/order.
+
+## Connected delivery — 2026-10-23
+
+Owner-approved AR-07 completes the connected application on the same branch after
+913fefa. Current entry: [connected setup/design/proof](portfolio-connected.md);
+[fresh verification](portfolio-verification.md#connected-application-milestone--2026-10-23)
+records commands, counts and boundaries. Canonical five skills ship in source and
+wheel distributions, select automatically per run and persist exact evidence.
+Actual session memory and final approval results/traces now reconcile durably
+without redispatch. Connected views share a session and saved history; invalid,
+failed, expired, rejected and uncertain outcomes remain truthful.
+
+All runtime verification is local and credential-free, using disposable migrated
+SQLite. Owner database8000 and original sample server3200 are preserved; the
+review console uses separate processes/data. No paid providers, public hosting,
+external messages, account actions or sibling application changes occurred.
+The original golden and historical screenshots remain intact. New connected
+screenshots and checksummed observations are separate.
+
+Known limits: native/model trials remain unavailable; PostgreSQL/hosted CI/public
+multi-user authentication/formal accessibility remain outside this milestone.
+History recovery scans saved session runs and needs scale review before hosting.
+The broader operation validator is still not green; scoped docs and ARIA gates
+have their own results. Root has no Git; ARIA receives the local task commit.
+
+Next action/owner: owner reviews connected Chat → Skills → approval → Memory and
+restart evidence. Agent should consult the portfolio index before starting another
+project; no other repository has been upgraded in this task. IDs AR-07/FTH-016;
+no new opportunity/experiment and no cash ledger change. Cash status unknown.
+
+Final review endpoints: console `http://localhost:3102`, API `http://127.0.0.1:8100`,
+SQLite `.tmp/connected-review-20261023/app.db`, bounded sandbox alongside it. Default
+session contains one calculation and one pending task proposal, not an executed
+write. Review timeout3600s. API process10572; tool session55807 owns it. Existing
+8000/3200 processes are preserved. Stop only review-owned processes when finished.
+Fresh gates: Python354pass/1skip; frontend64; browser10 real +13 sample +2 outage;
+Ruff91/Pyright0, original/new evidence and fresh isolated-wheel/API probe pass.
+Eight new inspected screenshots are linked in verification. No external delivery.

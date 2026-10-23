@@ -51,3 +51,18 @@ The API has no hosted authentication or tenant isolation. Put it behind an
 appropriate gateway before exposing it outside a trusted local environment.
 PostgreSQL, Redis, Celery, provider clients, web search, and Docker are optional
 integration surfaces and are not required for the offline demo.
+
+## Connected skill and session boundary (2026-10-23)
+
+API skill matching is advisory context preparation, never tool authorization.
+Only packaged canonical sources are discovered by default; activation revalidates
+source containment, identity, encoding and bounded nonempty content. Inspection
+returns logical identifiers and immutable recorded bodies/hashes. A keyword run
+must not imply model use or measured effectiveness. Strict file reads check the
+actual configured sandbox before tool dispatch.
+
+Session IDs organize a trusted local console; they are not authentication or
+tenant authorization. Unfiltered legacy API reads remain supported. Do not expose
+this service publicly as a multi-user app. Durable claimed-but-unfinished approval
+outcomes remain unconfirmed and cannot automatically retry. Result reconciliation
+updates presentation/memory only. See [connected behavior](portfolio-connected.md).

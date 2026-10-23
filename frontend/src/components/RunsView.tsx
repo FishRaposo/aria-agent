@@ -2,7 +2,7 @@
 
 import { Activity, ChevronRight, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ModeBadge, StatusBadge } from "@/components/Badges";
 import CostSummaryCard from "@/components/CostSummaryCard";
 import PageHeader from "@/components/PageHeader";
@@ -10,7 +10,7 @@ import RunCharts from "@/components/RunCharts";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/States";
 import { api, ApiError } from "@/lib/api";
 import { useDemoRevision } from "@/lib/use-demo";
-import { getProviderMode } from "@/lib/demo-scenarios";
+import { getProviderMode, getSessionId } from "@/lib/demo-scenarios";
 import { formatCost, formatMs, timeAgo } from "@/lib/format";
 import type { AgentRun, CostSummary } from "@/types";
 
@@ -53,16 +53,20 @@ export default function RunsView() {
   const [demoForced, setDemoForced] = useState(false);
   const [demoReason, setDemoReason] = useState<string | undefined>();
 
+  const requestSequence = useRef(0);
   const load = useCallback(async () => {
+    const requestId = ++requestSequence.current;
     if (getProviderMode() !== "sample") setLoading(true);
     setError(null);
     try {
-      const res = await api.listRuns();
+      const res = await api.listRuns(50, getSessionId());
+      if (requestId !== requestSequence.current) return;
       setRuns(res.data);
       setDemo(res.demo);
       setDemoForced(Boolean(res.demoForced));
       setDemoReason(res.demoReason);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setError(
         err instanceof ApiError
           ? `${err.message} (HTTP ${err.status})`
@@ -71,12 +75,13 @@ export default function RunsView() {
           : "Failed to load runs"
       );
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
+    return () => { requestSequence.current += 1; };
   }, [load, revision]);
 
   return (

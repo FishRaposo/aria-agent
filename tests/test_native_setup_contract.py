@@ -176,7 +176,11 @@ def test_protocol_supervisor_blocks_guard_failure(tmp_path, kind):
         "malformed": "print('{broken')",
     }
     guard_script.write_text(contents[kind])
-    result = module("benchmark").probe_hook(guard_script, {}, timeout=0.1)
+    # The timeout case deliberately exceeds its budget; ordinary interpreter
+    # startup must not become the failure under simultaneous browser load.
+    result = module("benchmark").probe_hook(
+        guard_script, {}, timeout=0.1 if kind == "timeout" else 2.0
+    )
     assert result["blocked"] is True
     assert result["status"] == kind
 

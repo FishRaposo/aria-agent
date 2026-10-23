@@ -23,6 +23,9 @@ SKIP_PARTS = {
     ".tmp",
     ".pytest-temp",
     ".next",
+    ".next-live",
+    ".next-connected-build",
+    "playwright-live-report",
     "build",
     "dist",
 }

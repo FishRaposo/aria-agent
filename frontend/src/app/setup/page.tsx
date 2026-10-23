@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Terminal } from "lucide-react";
 export default function SetupCasePage() {
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8 [overflow-wrap:anywhere]">
       <section className="max-w-3xl">
         <p className="eyebrow text-brand-300">THE REPRODUCIBLE SETUP CASE</p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight text-ink-50">Make the boundary testable.</h1>
@@ -13,11 +13,12 @@ export default function SetupCasePage() {
         <p className="eyebrow text-brand-300">RUN THE ACTUAL PROJECT</p>
         <h2 className="mt-3 text-xl font-semibold">Launch the strict local API profile.</h2>
         <p className="mt-3 text-sm text-ink-300">From the repository root in PowerShell, install the self-contained harness and explicitly enable approval gating plus blocking safety. These are launch settings; the library defaults remain compatible.</p>
-        <pre className="mono mt-5 overflow-x-auto rounded-lg bg-ink-950 p-4 text-xs leading-7 text-ink-200">{'python -m pip install -e ".[dev]"\n$env:AGENT_MODE="approval_gated"\n$env:ARIA_SAFETY_MODE="block"\n$env:CORS_ALLOWED_ORIGINS="http://localhost:3000"\nuvicorn aria.main:app --app-dir src --port 8000'}</pre>
+        <pre className="mono mt-5 overflow-x-auto rounded-lg bg-ink-950 p-4 text-xs leading-7 text-ink-200">{'python -m pip install -e ".[dev]"\n$env:AGENT_MODE="approval_gated"\n$env:ARIA_SAFETY_MODE="block"\n$env:AGENT_ROUTING="keyword"\n$env:CORS_ALLOWED_ORIGINS="http://localhost:3000"\nuvicorn aria.main:app --app-dir src --port 8000'}</pre>
         <p className="mt-4 text-sm leading-relaxed text-ink-300">Open the local API documentation at <span className="mono">http://localhost:8000/docs</span>. Submit a task-creation request through <span className="mono">POST /agent/chat</span>, inspect the proposed parameters in <span className="mono">GET /approvals</span>, then approve the unchanged action through the documented approval endpoint. Compare the run trace before and after the decision.</p>
         <p className="mt-3 text-xs text-ink-400">For the connected console, set NEXT_PUBLIC_API_URL=http://localhost:8000 and run npm run dev from frontend/. Select Connect API in the sample toolbar. A disconnected backend shows a transport error.</p>
+        <p className="mt-3 text-xs text-ink-400">For durable SQLite history, sandbox setup and migration0003, follow docs/portfolio-connected.md. The five shipped skills match automatically. Inspect a selected run in Skills, then compare its approval outcome with Chat, Runs and Memory. Keyword execution makes no model-use claim.</p>
       </section>
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <section className="card"><Terminal className="mb-4 h-6 w-6 text-brand-300" /><h2 className="text-lg font-semibold">Reproduce the local contract checks.</h2><p className="mt-2 text-sm text-ink-300">Inspect the fixture permissions, canonical skills, guards, and rollback instructions. Generate the evidence bundle before checking it.</p><pre className="mono mt-5 overflow-x-auto rounded-lg bg-ink-950 p-4 text-xs leading-7 text-ink-200">{"examples/coding_agent_setup/README.md\npytest -q tests/test_native_setup_contract.py\npython scripts/portfolio_demo.py\npython scripts/verify_portfolio_evidence.py"}</pre><p className="mt-4 text-xs leading-relaxed text-ink-400">The native setup example and protocol tests are local. They do not require a provider credential or another checkout.</p></section>
         <section className="card"><p className="eyebrow text-amber-300">NATIVE RUNTIME: UNAVAILABLE</p><h2 className="mt-3 text-lg font-semibold">Protocol checks and native trials are separate.</h2><p className="mt-3 text-sm leading-relaxed text-ink-300">Deterministic protocol tests exercise the local contract. They do not demonstrate model behavior, establish universal injection resistance, or make a hook an operating system sandbox.</p><p className="mt-4 text-sm leading-relaxed text-amber-100">The native runtime benchmark remains unavailable. Its baseline/configured matrix has 60 planned cells; no native model calls ran. Actual trials require an identified runtime and model, owner-approved access and budget, and recorded raw outcomes.</p></section>
       </div>

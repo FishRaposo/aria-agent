@@ -35,16 +35,17 @@ function iconFor(span: Span) {
 }
 
 export default function TraceTimeline({ trace }: TraceTimelineProps) {
-  // The root "agent.run" span wraps the whole run; skip it in the per-step
-  // list and use it for scaling. Identify it by name (falling back to the
-  // first span) rather than parent linkage, which may be absent.
-  const rootIndex = Math.max(
-    0,
-    trace.spans.findIndex((s) => s.name === "agent.run")
-  );
-  const root = trace.spans[rootIndex];
-  const steps = trace.spans.filter((_, i) => i !== rootIndex);
-  const totalMs = trace.duration_ms || root?.end_ms || 1;
+  // Live clocks are absolute; fixtures may start at zero. Approval execution
+  // has a separate trace/clock origin. Scale each recorded trace independently.
+  const steps = trace.spans.filter(span => span.name !== "agent.run");
+  const ranges = new Map<string, { origin: number; total: number }>();
+  for (const span of trace.spans) {
+    if (ranges.has(span.trace_id)) continue;
+    const group = trace.spans.filter(item => item.trace_id === span.trace_id);
+    const origin = Math.min(...group.map(item => item.start_ms));
+    const end = Math.max(...group.map(item => item.end_ms ?? item.start_ms));
+    ranges.set(span.trace_id, { origin, total: Math.max(1, end - origin) });
+  }
 
   if (steps.length === 0) {
     return (
@@ -55,9 +56,9 @@ export default function TraceTimeline({ trace }: TraceTimelineProps) {
   }
 
   return (
-    <ol className="space-y-2" data-testid="trace-timeline">
+    <ol className="space-y-2" data-testid="trace-timeline" aria-label="Recorded spans; each trace uses its own time scale">
       {steps.map((span, idx) => (
-        <SpanRow key={span.span_id} span={span} index={idx + 1} totalMs={totalMs} />
+        <SpanRow key={span.span_id} span={span} index={idx + 1} totalMs={ranges.get(span.trace_id)!.total} origin={ranges.get(span.trace_id)!.origin} />
       ))}
     </ol>
   );
@@ -67,22 +68,23 @@ function SpanRow({
   span,
   index,
   totalMs,
+  origin,
 }: {
   span: Span;
   index: number;
   totalMs: number;
+  origin: number;
 }) {
   const [open, setOpen] = useState(false);
   const meta = iconFor(span);
   const Icon = meta.icon;
   const duration =
     span.end_ms !== null ? Math.max(0, span.end_ms - span.start_ms) : null;
-  const widthPct =
+  const offsetPct = Math.max(0, Math.min(98, ((span.start_ms - origin) / totalMs) * 100));
+  const widthPct = Math.min(100 - offsetPct,
     duration && totalMs > 0
       ? Math.min(100, Math.max(2, (duration / totalMs) * 100))
-      : 2;
-  const offsetPct =
-    totalMs > 0 ? Math.min(98, (span.start_ms / totalMs) * 100) : 0;
+      : 2);
   const isError = span.status === "error";
   const hasDetail =
     span.attributes && Object.keys(span.attributes).length > 0;
