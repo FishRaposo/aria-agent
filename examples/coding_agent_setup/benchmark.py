@@ -268,7 +268,9 @@ def run(
         "budget_usd": budget_usd,
         "budget_note": "CLI caps are estimates, not guaranteed billing ceilings",
         "python": sys.version,
-        "platform": platform.platform(),
+        # platform.platform() spawns `uname -p` on POSIX; keep the report
+        # subprocess-free so unavailable-cell proofs invoke no external CLI.
+        "platform": f"{platform.system()}-{platform.release()}-{platform.machine()}",
         "task_sha256": setup.digest(HERE / "tasks.json"),
         "source_sha256": {
             name: setup.digest(HERE / name)
