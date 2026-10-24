@@ -9,5 +9,7 @@
   ],
   "pythonVersion": "3.10",
   "typeCheckingMode": "basic",
-  "useLibraryCodeForTypes": true
+  "useLibraryCodeForTypes": true,
+  "venvPath": ".",
+  "venv": ".venv"
 }
