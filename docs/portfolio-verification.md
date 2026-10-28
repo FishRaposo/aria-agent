@@ -1,5 +1,30 @@
 # Project 02 verification record
 
+## 2026-10-28 diagnostic acceptance refresh (this section is current)
+
+Base: `4c3f4a3` on `main`. The 2026-10-28 portfolio diagnostic audit found no
+confirmed code defect; its remaining gates were connected acceptance. Results:
+
+- Real-process live e2e (`playwright.live.config.ts`, chromium, dedicated
+  ports 8100/3102, disposable SQLite via real `alembic upgrade head` +
+  `uvicorn aria.main:app`, no API mocks, no model/provider calls):
+  **10 passed**. Covered: `/skills` metadata without activation; automatic
+  skill + real browser approval + session memory/history agreement; rejection,
+  actual expiry and workspace denial with zero task effects; keyboard
+  approval; real storage failure recorded as durable uncertain, never shown
+  successful; streamed runs preserve skill evidence with legacy history
+  honestly unknown; actual outage retry recovery and sample mode stopping
+  backend calls; connected routes usable at 390x844, 768x1024 and 1440x900.
+  Evidence: `artifacts/portfolio/connected-evidence/` and
+  `artifacts/portfolio/connected-screenshots/` (generated, untracked).
+- Hosted CI on `main` (`4c3f4a3`) completed success: Python install, full
+  pytest, focused skills, Ruff check+format, Pyright, forbidden scan,
+  `make evidence`, `make package`, isolated wheel import; frontend npm ci,
+  unit tests, lint, production build, sample+a11y e2e, connected-outage e2e
+  and production-bundle e2e.
+
+The sections below are historical evidence from the earlier branch.
+
 Evidence dates: 2026-10-22–23, America/Sao_Paulo. Base:
 `ad5f6e94ee70ae0e9eabbe79d903f2993234ab0b`. Branch: `feat/aria-portfolio`.
 This record covers local implementation plus hosted checks. **Hosted status:**
