@@ -217,6 +217,10 @@ evidence can be reviewed without infrastructure.
 - `docs/` — architecture, security, replay, streaming, safety, memory, and
   evidence notes.
 
+## Part of the stack
+
+[groundtruth](https://github.com/FishRaposo/groundtruth) · [evalforge](https://github.com/FishRaposo/evalforge) · [llm-gateway](https://github.com/FishRaposo/llm-gateway) · [agenttrace](https://github.com/FishRaposo/agenttrace) · [WCP-Compliance-Agent-V5](https://github.com/FishRaposo/WCP-Compliance-Agent-V5)
+
 ## License
 
 MIT. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
