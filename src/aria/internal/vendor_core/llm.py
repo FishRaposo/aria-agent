@@ -1,3 +1,9 @@
+# pyright: reportCallIssue=false, reportArgumentType=false
+# This vendored module is the attribution-pinned compatibility subset for the server
+# only (see THIRD_PARTY_NOTICES.md). Its optional Anthropic SDK integration is not a
+# declared dependency, so the type checker has no pinned SDK version to check calls
+# against; diagnostics for those call sites are intentionally relaxed here and
+# re-covered by runtime import guards instead.
 import asyncio
 import time
 from typing import Any, Optional
