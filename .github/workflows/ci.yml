@@ -57,7 +57,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # vitest 5 / vite 8 require Node >=22.12; Next 16 needs >=20.9.
           node-version: "22"
