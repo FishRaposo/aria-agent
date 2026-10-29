@@ -64,7 +64,7 @@ export default function RunCharts({ runs }: RunChartsProps) {
                   color: "#e2e8f0",
                   fontSize: 12,
                 }}
-                formatter={(v: number) => [`$${Number(v).toFixed(5)}`, "Cost"]}
+                formatter={(v) => [`$${Number(v).toFixed(5)}`, "Cost"]}
               />
               <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
                 {data.map((d) => (
@@ -105,7 +105,7 @@ export default function RunCharts({ runs }: RunChartsProps) {
                   color: "#e2e8f0",
                   fontSize: 12,
                 }}
-                formatter={(v: number) => [`${Number(v).toFixed(1)} ms`, "Latency"]}
+                formatter={(v) => [`${Number(v).toFixed(1)} ms`, "Latency"]}
               />
               <Line
                 type="monotone"
