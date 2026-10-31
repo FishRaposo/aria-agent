@@ -129,6 +129,7 @@ ruff check src/aria tests examples scripts
 ruff format --check src/aria tests examples scripts
 pyright src/
 make evidence
+# without make: python scripts/portfolio_demo.py && python scripts/verify_portfolio_evidence.py
 make package
 make forbidden
 
