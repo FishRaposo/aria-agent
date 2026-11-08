@@ -6,6 +6,8 @@ actions and admit a single execution claim.
 
 **At a glance.** Approvals bind the exact action and admit a single execution claim; a denial produces zero side effects; repository text cannot grant permission. See it without installing: [the labelled replay](https://fishraposo.github.io/aria-agent/). Limits: personal open-source build, and the console is not publicly hosted.
 
+Three captures, no install: [the approval boundary](docs/images/portfolio/aria-01-cover.png) · [a denied action](docs/images/portfolio/aria-02-denied.png) · [the same gate connected](docs/images/portfolio/aria-03-connected.png). Provenance and limits: [docs/images/portfolio](docs/images/portfolio/README.md).
+
 **Try the preview:** `cd frontend`, `npm ci`, `npm run demo:ui`, then open
 `http://localhost:3000`. Start the guided demo or explore the calculation,
 review-required draft and denied-action stories. Every screen labels its
