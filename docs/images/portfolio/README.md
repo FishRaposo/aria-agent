@@ -19,3 +19,5 @@ gate's behaviour, not that every path is closed.
 boundary rather than by eye, laid out 1000×750 and downscaled with Lanczos. The sample mode is
 tab-local with no backend calls; the third card is the connected capture, and its timings are not a
 benchmark.
+
+**Social preview:** `docs/media/social-preview.png` is the 1280×640 GitHub card (a composite of the cover card with the repository name and thesis). Upload it in Settings → Social preview; a repo edit cannot set it.
