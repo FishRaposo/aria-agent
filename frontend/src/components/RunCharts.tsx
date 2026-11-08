@@ -44,7 +44,11 @@ export default function RunCharts({ runs }: RunChartsProps) {
         </h3>
         <p className="mb-4 text-xs text-ink-400">Estimated USD, by run id</p>
         <div data-testid="cost-chart" className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            initialDimension={{ width: 1, height: 1 }}
+          >
             <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
               <XAxis dataKey="label" stroke={AXIS} fontSize={11} tickLine={false} />
@@ -85,7 +89,11 @@ export default function RunCharts({ runs }: RunChartsProps) {
         </h3>
         <p className="mb-4 text-xs text-ink-400">Total trace duration (ms)</p>
         <div data-testid="latency-chart" className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            initialDimension={{ width: 1, height: 1 }}
+          >
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
               <XAxis dataKey="label" stroke={AXIS} fontSize={11} tickLine={false} />
