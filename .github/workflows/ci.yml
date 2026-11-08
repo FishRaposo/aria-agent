@@ -36,9 +36,13 @@ jobs:
       - name: Forbidden dependency scan
         run: python scripts/check_forbidden_dependencies.py
       - name: Offline evidence
-        run: make evidence
+        run: |
+          python scripts/portfolio_demo.py
+          python scripts/verify_portfolio_evidence.py
       - name: Wheel contents
-        run: make package
+        run: |
+          python -m build
+          python scripts/check_wheel_contents.py
       - name: Isolated wheel import
         # Runtime dependencies come from uv.lock (hash-checked); the wheel adds none.
         run: |

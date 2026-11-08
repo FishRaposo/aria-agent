@@ -88,7 +88,7 @@ optional and only starts PostgreSQL and Redis for integration work.
 
 ## Offline evidence path
 
-`make evidence` runs a fixed SQLite-free scenario covering routing, bounded
+`python scripts/portfolio_demo.py` runs a fixed SQLite-free scenario covering routing, bounded
 multi-hop execution, safety decisions, retries, rate limits, approval state,
 dry-run replay, streaming event order, local memory ranking, costs, and traces.
 The generated bundle lives under ignored `artifacts/portfolio/aria-agent-evidence`.
@@ -134,10 +134,11 @@ pytest --noconftest tests/test_skills.py -q
 ruff check src/aria tests examples scripts
 ruff format --check src/aria tests examples scripts
 pyright src/
-make evidence
-# without make: python scripts/portfolio_demo.py && python scripts/verify_portfolio_evidence.py
-make package
-make forbidden
+python scripts/portfolio_demo.py
+python scripts/verify_portfolio_evidence.py
+python -m build
+python scripts/check_wheel_contents.py
+python scripts/check_forbidden_dependencies.py
 
 cd frontend
 npm ci

@@ -1,7 +1,7 @@
 # Portfolio evidence
 
-`make evidence` runs `scripts/portfolio_demo.py` and then
-`scripts/verify_portfolio_evidence.py`. The ignored bundle contains:
+`python scripts/portfolio_demo.py` runs the demo and
+`python scripts/verify_portfolio_evidence.py` verifies it. The ignored bundle contains:
 
 - `manifest.json` — schema version, mode, Git SHA, suite/result/reproducibility hashes, and file digests;
 - `report.json` — canonical redacted result;

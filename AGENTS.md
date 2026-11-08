@@ -13,9 +13,11 @@ pytest --noconftest tests/test_skills.py -q
 ruff check src/aria tests examples scripts
 ruff format --check src/aria tests examples scripts
 pyright src/
-make evidence
-make package
-make forbidden
+python scripts/portfolio_demo.py
+python scripts/verify_portfolio_evidence.py
+python -m build
+python scripts/check_wheel_contents.py
+python scripts/check_forbidden_dependencies.py
 ```
 
 The frontend uses its own lockfile:
@@ -56,7 +58,7 @@ suite changes.
 
 ## Evidence and provenance
 
-`make evidence` is the canonical portfolio demonstration. Generated artifacts
+`python scripts/portfolio_demo.py` plus `python scripts/verify_portfolio_evidence.py` are the canonical portfolio demonstration. Generated artifacts
 are ignored; only the normalized fixture under
 `tests/fixtures/golden/portfolio-evidence.json` is tracked. Do not put tokens,
 keys, environment paths, timestamps, random IDs, or runtime durations in the
@@ -83,8 +85,9 @@ infrastructure, and real provider credentials explicitly deferred.
 ## Git discipline
 
 Work only inside this repository (`aria-agent`). Before edits, pull/rebase the
-current branch. Before handoff run `git diff --check`, `make forbidden`,
-`make evidence` (or `python scripts/verify_portfolio_evidence.py`), and the
+current branch. Before handoff run `git diff --check`,
+`python scripts/check_forbidden_dependencies.py`, `python scripts/portfolio_demo.py`
+plus `python scripts/verify_portfolio_evidence.py`, and the
 Python/frontend checks listed in Canonical commands (`pytest`, `ruff`, `pyright`,
 and the frontend npm targets when UI changes).
 

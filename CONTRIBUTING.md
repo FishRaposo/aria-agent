@@ -17,8 +17,9 @@ pytest --noconftest tests/test_skills.py -q  # focused Skills suite
 ruff check src/aria tests examples scripts
 ruff format --check src/aria tests examples scripts
 pyright src/
-make evidence                              # deterministic offline evidence bundle
-make forbidden                             # dependency scan
+python scripts/portfolio_demo.py           # deterministic offline evidence bundle
+python scripts/verify_portfolio_evidence.py
+python scripts/check_forbidden_dependencies.py  # dependency scan
 ```
 
 Frontend changes also need:

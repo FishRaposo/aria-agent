@@ -19,7 +19,8 @@ confirmed code defect; its remaining gates were connected acceptance. Results:
   `artifacts/portfolio/connected-screenshots/` (generated, untracked).
 - Hosted CI on `main` (`4c3f4a3`) completed success: Python install, full
   pytest, focused skills, Ruff check+format, Pyright, forbidden scan,
-  `make evidence`, `make package`, isolated wheel import; frontend npm ci,
+  `python scripts/portfolio_demo.py`, `python scripts/verify_portfolio_evidence.py`,
+  `python -m build`, isolated wheel import; frontend npm ci,
   unit tests, lint, production build, sample+a11y e2e, connected-outage e2e
   and production-bundle e2e.
 
