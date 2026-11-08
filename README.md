@@ -9,6 +9,8 @@ actions and admit a single execution claim.
 review-required draft and denied-action stories. Every screen labels its
 interactive sample data; reset restores the scenario. No credentials required.
 
+**See it without installing:** [the approval boundary as a labelled replay](https://fishraposo.github.io/aria-agent/) — three captures from the recorded runs, sample and connected marked apart.
+
 **Inspect the engineering:** [case study](docs/portfolio-case-study.md) ·
 [walkthrough and real API setup](docs/portfolio-walkthrough.md) ·
 [coding-agent setup fixture](examples/coding_agent_setup/README.md) ·
