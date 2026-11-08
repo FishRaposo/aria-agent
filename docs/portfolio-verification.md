@@ -310,3 +310,19 @@ synthetic completed calculation and pending task request (no task write executed
 The review approval timeout is3600s; later expiry is normal. Existing8000/3200
 processes and their database were not reused. Recreate this local review session
 using the setup guide; these are local process endpoints, not public hosting.
+
+## Browser demo — verified 2026-11-08
+
+`https://fishraposo.github.io/aria-demo/` is the console built as a **Next static export** in demo
+mode (`NEXT_STATIC_EXPORT=1 NEXT_BASE_PATH=/aria-demo NEXT_PUBLIC_DEMO_MODE=true`, script
+`demo:static`). No backend, no keys, no hosting.
+
+Verified in a headless browser against the live URL: the sample banner renders, client-side
+navigation reaches `runs/` and `runs/c9d0e1f2/`, that run shows **Paused at the approval boundary**
+with `email_draft` and **0 executions**, **no request leaves `fishraposo.github.io`**, and the
+console is clean.
+
+Two things this needed, both recorded because they will bite again: the dynamic `runs/[id]` route
+takes `generateStaticParams` (its ids come from `MOCK_RUNS` plus the denied scenario), and Pages
+needs a `.nojekyll` at the site root — Jekyll skips anything starting with `_`, so every
+`/_next/**` asset 404s and the console sits on "Preparing console…" until the file exists.

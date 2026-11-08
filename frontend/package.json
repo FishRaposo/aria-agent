@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:prod": "cross-env PLAYWRIGHT_PROD=true playwright test",
-    "test:e2e:connected": "cross-env PLAYWRIGHT_CONNECTED=true playwright test"
+    "test:e2e:connected": "cross-env PLAYWRIGHT_CONNECTED=true playwright test",
+    "demo:static": "cross-env NEXT_STATIC_EXPORT=1 NEXT_BASE_PATH=/aria-demo NEXT_PUBLIC_DEMO_MODE=true next build"
   },
   "dependencies": {
     "clsx": "^2.1.0",
