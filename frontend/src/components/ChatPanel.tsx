@@ -268,7 +268,7 @@ function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: 
                 </div>
               </div>
 
-              {!turn.demo && <Link href={`/runs/${res.run_id}`} className="inline-block text-xs text-brand-200">Inspect execution timeline →</Link>}
+              {!turn.demo && <Link prefetch={false} href={`/runs/${res.run_id}`} className="inline-block text-xs text-brand-200">Inspect execution timeline →</Link>}
               {/* loop / tool calls */}
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <StatusBadge status={res.status} />
@@ -309,7 +309,7 @@ function TurnView({ turn, retry, busy }: { turn: Turn; retry: () => void; busy: 
                     Held for approval — id{" "}
                     <span className="mono">{res.approval.id}</span>. Resolve it
                     in the{" "}
-                    <Link href="/approvals" className="underline">
+                    <Link prefetch={false} href="/approvals" className="underline">
                       Approval queue
                     </Link>
                     .

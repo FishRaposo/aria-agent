@@ -166,7 +166,7 @@ export default function ApprovalsView() {
                     </span>
                     <ApprovalStatusBadge status={a.status} />
                     {a.run_id && (
-                      <Link
+                      <Link prefetch={false}
                         href={`/runs/${a.run_id}`}
                         className="mono text-xs text-brand-300 hover:underline"
                       >

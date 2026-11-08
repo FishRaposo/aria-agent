@@ -116,7 +116,7 @@ export default function RunsView() {
 
           <div className="space-y-3" data-testid="run-list">
             {runs.map((run) => (
-              <Link
+              <Link prefetch={false}
                 key={run.id}
                 href={`/runs/${run.id}`}
                 className="group flex items-center gap-4 rounded-xl border border-ink-800 bg-ink-900/50 p-4 transition-colors hover:border-brand-500/40 hover:bg-ink-900"

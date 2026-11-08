@@ -9,7 +9,7 @@ export default function NotFound() {
       <p className="mb-6 max-w-md text-sm text-ink-400">
         That route does not exist in the console.
       </p>
-      <Link href="/" className="btn-primary">
+      <Link prefetch={false} href="/" className="btn-primary">
         Back to overview
       </Link>
     </div>

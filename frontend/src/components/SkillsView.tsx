@@ -46,7 +46,7 @@ function ActivatedCard({ skill, sample }: { skill: ActivatedSkill; sample: boole
           {skill.activation_command && (
             <p className="mono text-xs text-brand-200">{skill.activation_command}</p>
           )}
-          <Link
+          <Link prefetch={false}
             href={`/runs/${skill.run_id}`}
             className="mt-1 inline-block text-xs text-brand-300 hover:underline"
           >

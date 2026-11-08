@@ -49,7 +49,7 @@ export default function DemoShell({ children }: { children: React.ReactNode }) {
         <div className="min-w-0 flex-1"><p className="eyebrow text-brand-300">Guided demo · {step + 1} / {STEPS.length} {paused && "· paused"}</p><h2 className="mt-1 font-semibold text-ink-50">{STEPS[step].title}</h2><p className="mt-1 max-w-3xl text-sm text-ink-300">{STEPS[step].body}</p></div>
         <div className="flex flex-wrap items-center gap-3">
           <button className="text-xs text-ink-300" onClick={() => setPaused(!paused)}>{paused ? "Resume tour" : "Pause tour"}</button>
-          {!paused && <Link href={STEPS[step].next} className="btn-secondary" onClick={() => setGuidedStep(step === 4 ? -1 : step + 1)}>{step === 4 ? "Finish tour" : "Next step"}<ArrowRight className="h-4 w-4" /></Link>}
+          {!paused && <Link prefetch={false} href={STEPS[step].next} className="btn-secondary" onClick={() => setGuidedStep(step === 4 ? -1 : step + 1)}>{step === 4 ? "Finish tour" : "Next step"}<ArrowRight className="h-4 w-4" /></Link>}
           <button aria-label="Exit guided demo" onClick={() => setGuidedStep(-1)} className="rounded-lg p-2 text-ink-300"><X className="h-4 w-4" /></button>
         </div>
       </div>
