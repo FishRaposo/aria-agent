@@ -9,7 +9,7 @@ Git-installed, hosted-database, or provider-credential requirements.
 ```bash
 python -m pip install -e ".[dev]"
 pytest -q
-pytest --noconftest tests/test_skills.py -q
+pytest --noconftest tests/test_skills.py tests/test_connected_skills.py -q
 ruff check src/aria tests examples scripts
 ruff format --check src/aria tests examples scripts
 pyright src/

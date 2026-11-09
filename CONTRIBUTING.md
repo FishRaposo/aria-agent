@@ -13,7 +13,7 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 
 pytest -q                                  # full offline suite
-pytest --noconftest tests/test_skills.py -q  # focused Skills suite
+pytest --noconftest tests/test_skills.py tests/test_connected_skills.py -q  # focused Skills suite
 ruff check src/aria tests examples scripts
 ruff format --check src/aria tests examples scripts
 pyright src/
