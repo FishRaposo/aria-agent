@@ -127,7 +127,7 @@ export default function RunsView() {
                     <StatusBadge status={run.status} />
                     <ModeBadge mode={run.mode} />
                     {run.route && (
-                      <span className="rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-[11px] text-ink-400">
+                      <span className="rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-xs text-ink-400">
                         route: {run.route}
                       </span>
                     )}

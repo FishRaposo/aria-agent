@@ -136,7 +136,7 @@ export default function ChatPanel() {
               disabled={!sample && (!runtime || runtime.allowed_modes.length === 1)}
               value={mode}
               onChange={(e) => setMode(e.target.value as AgentMode)}
-              className="rounded-lg border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm text-ink-100 outline-none focus:border-brand-500"
+              className="min-h-[44px] rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-100 outline-none focus:border-brand-500"
             >
               <option disabled={!sample && !runtime?.allowed_modes.includes("free_running")} value="free_running">free-running</option>
               <option value="approval_gated">approval-gated</option>
@@ -157,21 +157,21 @@ export default function ChatPanel() {
             <p className="text-sm text-ink-400">
               Ask the agent something. Try{" "}
               <button
-                className="text-brand-300 underline-offset-2 hover:underline"
+                className="inline-flex min-h-[44px] items-center text-brand-300 underline-offset-2 hover:underline"
                 onClick={() => setInput("What is 1450 * 32?")}
               >
                 a calculation
               </button>
               ,{" "}
               <button
-                className="text-brand-300 underline-offset-2 hover:underline"
+                className="inline-flex min-h-[44px] items-center text-brand-300 underline-offset-2 hover:underline"
                 onClick={() => setInput(sample ? "Inspect the unauthorized repository instruction" : "read ../outside.txt")}
               >
                 an unauthorized action
               </button>
               , or{" "}
               <button
-                className="text-brand-300 underline-offset-2 hover:underline"
+                className="inline-flex min-h-[44px] items-center text-brand-300 underline-offset-2 hover:underline"
                 onClick={() => setInput("Draft an email to ops@example.test")}
               >
                 an email draft

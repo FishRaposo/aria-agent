@@ -26,7 +26,7 @@ export default function HomePage() {
           <Link prefetch={false} href="/runs" className="btn-secondary hero-cta" onClick={event => openSample(event, "/runs")}>Explore freely</Link>
         </div>
         <p className="mt-4 text-xs text-ink-400">3 minutes · interactive fixtures · no credentials needed</p>
-        <div className="mt-5 flex flex-wrap gap-4 text-xs text-brand-200"><Link prefetch={false} href="/setup#actual-project">Run the actual project →</Link><Link prefetch={false} href="/setup#engineering-evidence">View engineering evidence →</Link></div>
+        <div className="mt-3 flex flex-wrap gap-x-4 text-xs text-brand-200"><Link prefetch={false} href="/setup#actual-project" className="inline-flex min-h-[44px] items-center">Run the actual project →</Link><Link prefetch={false} href="/setup#engineering-evidence" className="inline-flex min-h-[44px] items-center">View engineering evidence →</Link></div>
         <div className="hero-principles"><span><ShieldCheck />Permissioned tools</span><span><Fingerprint />Human review</span><span><Terminal />Inspectable trace</span></div>
       </div>
       <div className="control-artifact" aria-label="Example of an inspectable approval boundary">
@@ -38,7 +38,7 @@ export default function HomePage() {
         <div className="artifact-footer"><LockKeyhole className="h-4 w-4" /><span>No approval. No execution.</span><span className="ml-auto text-ink-400">SIMULATION</span></div>
       </div>
     </section>
-    <section className="stories-section" aria-label="Three execution stories"><div className="mb-5 flex flex-wrap items-end justify-between gap-2"><div><p className="eyebrow text-ink-400">THREE REQUESTS. THREE OUTCOMES.</p><h2 className="mt-2 text-xl font-semibold text-ink-100">Follow the decision, not just the answer.</h2></div><Link prefetch={false} href="/setup" className="inline-flex items-center gap-1 text-xs text-brand-200">See the real setup case<ArrowRight className="h-3.5 w-3.5" /></Link></div>
+    <section className="stories-section" aria-label="Three execution stories"><div className="mb-5 flex flex-wrap items-end justify-between gap-2"><div><p className="eyebrow text-ink-400">THREE REQUESTS. THREE OUTCOMES.</p><h2 className="mt-2 text-xl font-semibold text-ink-100">Follow the decision, not just the answer.</h2></div><Link prefetch={false} href="/setup" className="inline-flex min-h-[44px] items-center gap-1 text-xs text-brand-200">See the real setup case<ArrowRight className="h-3.5 w-3.5" /></Link></div>
       <div className="story-grid">{STORIES.map(({ number, title, subtitle, label, href, color, icon: Icon }) => <Link prefetch={false} href={href} key={number} className={`story-card ${color}`} onClick={event => openSample(event, href)}><div className="flex items-center justify-between"><span className="mono text-xs text-ink-400">{number}</span><span className="story-status"><Icon className="h-3 w-3" />{label}</span></div><h3>{title}</h3><p>{subtitle}</p><div className="story-card-bottom"><span>Inspect story</span><ChevronRight className="h-4 w-4" /></div></Link>)}</div>
     </section>
     <footer className="landing-footer"><span>Instructions ≠ permissions ≠ verified outcomes.</span><span>Offline-first · Python / FastAPI / Next.js</span></footer>

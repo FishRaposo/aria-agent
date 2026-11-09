@@ -20,7 +20,7 @@ import type { ActivatedSkill, AgentRun, SkillCatalogEntry, SkillsSnapshot } from
 
 function ScopeBadge({ scope }: { scope: string }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-[11px] font-medium capitalize text-ink-400">
+    <span className="inline-flex items-center rounded-full border border-ink-700 bg-ink-800/60 px-2 py-0.5 text-xs font-medium capitalize text-ink-400">
       {scope}
     </span>
   );
@@ -36,7 +36,7 @@ function ActivatedCard({ skill, sample }: { skill: ActivatedSkill; sample: boole
             <Sparkles className="h-4 w-4 text-brand-300" />
             <h3 className="mono font-semibold text-ink-50">{skill.name}</h3>
             <ScopeBadge scope={skill.scope} />
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
               Activated
             </span>
           </div>
@@ -48,14 +48,14 @@ function ActivatedCard({ skill, sample }: { skill: ActivatedSkill; sample: boole
           )}
           <Link prefetch={false}
             href={`/runs/${skill.run_id}`}
-            className="mt-1 inline-block text-xs text-brand-300 hover:underline"
+            className="mt-1 inline-flex min-h-[44px] items-center text-xs text-brand-300 hover:underline"
           >
             from run {skill.run_id}
           </Link>
         </div>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 text-xs font-medium text-brand-300 hover:text-brand-200"
+          className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-brand-300 hover:text-brand-200"
         >
           <ChevronDown
             className={clsx("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
@@ -64,7 +64,7 @@ function ActivatedCard({ skill, sample }: { skill: ActivatedSkill; sample: boole
         </button>
       </div>
       {open && (
-        <pre className="mono mt-3 max-h-64 overflow-auto rounded-lg border border-ink-800 bg-ink-950/70 p-3 text-xs leading-relaxed text-ink-200">
+        <pre tabIndex={0} className="mono mt-3 max-h-64 overflow-auto rounded-lg border border-ink-800 bg-ink-950/70 p-3 text-xs leading-relaxed text-ink-200">
           {skill.instructions}
         </pre>
       )}
@@ -82,7 +82,7 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
             <Lock className="h-4 w-4 text-ink-400" />
             <h3 className="mono font-semibold text-ink-200">{skill.name}</h3>
             <ScopeBadge scope={skill.scope} />
-            <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-900/60 px-2 py-0.5 text-[11px] font-medium text-ink-400">
+            <span className="inline-flex items-center gap-1 rounded-full border border-ink-700 bg-ink-900/60 px-2 py-0.5 text-xs font-medium text-ink-400">
               <EyeOff className="h-3 w-3" />
               Instructions withheld
             </span>
@@ -93,7 +93,7 @@ function InactiveCard({ skill }: { skill: SkillCatalogEntry }) {
         {skill.activation_hints && (
           <button
             onClick={() => setHintsOpen((v) => !v)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-ink-400 hover:text-ink-200"
+            className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-ink-400 hover:text-ink-200"
           >
             <ChevronDown
               className={clsx(

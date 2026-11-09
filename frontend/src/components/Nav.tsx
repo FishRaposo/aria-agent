@@ -25,13 +25,13 @@ export default function Nav() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/80 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-ink-800 bg-ink-950">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 md:gap-4 md:px-6">
-        <Link prefetch={false} href="/" className="flex shrink-0 items-center gap-2">
+        <Link prefetch={false} href="/" className="flex min-h-[44px] shrink-0 items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white">
             A
           </span>
-          <span className="text-base font-semibold tracking-tight text-ink-50">
+          <span className="hidden text-base font-semibold tracking-tight text-ink-50 sm:inline">
             ARIA
             <span className="ml-1 hidden text-ink-400 lg:inline">
               Agent Console

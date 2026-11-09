@@ -74,7 +74,7 @@ export function ModeBadge({ mode }: { mode: string }) {
   return (
     <span
       className={clsx(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
         gated
           ? "border-brand-400/30 bg-brand-400/10 text-brand-300"
           : "border-ink-600 bg-ink-700/40 text-ink-300"

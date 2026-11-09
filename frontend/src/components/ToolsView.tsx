@@ -81,7 +81,7 @@ function ToolCard({ tool }: { tool: ToolSpec }) {
 
       <button
         onClick={() => setOpen((v) => !v)}
-        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-300 hover:text-brand-200"
+        className="mt-3 inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-brand-300 hover:text-brand-200"
       >
         <ChevronDown
           className={clsx("h-3.5 w-3.5 transition-transform", open && "rotate-180")}

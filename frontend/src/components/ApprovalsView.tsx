@@ -116,7 +116,7 @@ export default function ApprovalsView() {
               key={f.value}
               onClick={() => setFilter(f.value)}
               className={clsx(
-                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                "inline-flex min-h-[44px] min-w-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium transition-colors",
                 filter === f.value
                   ? "bg-brand-600/20 text-brand-200"
                   : "text-ink-400 hover:bg-ink-800/60 hover:text-ink-200"
@@ -168,13 +168,13 @@ export default function ApprovalsView() {
                     {a.run_id && (
                       <Link prefetch={false}
                         href={`/runs/${a.run_id}`}
-                        className="mono text-xs text-brand-300 hover:underline"
+                        className="mono inline-flex min-h-[44px] items-center text-xs text-brand-300 hover:underline"
                       >
                         run {a.run_id}
                       </Link>
                     )}
                   </div>
-                  <pre className="mono max-w-full overflow-x-auto rounded-lg border border-ink-800 bg-ink-950/50 p-2.5 text-xs text-ink-300">
+                  <pre tabIndex={0} className="mono max-w-full overflow-x-auto rounded-lg border border-ink-800 bg-ink-950/50 p-2.5 text-xs text-ink-300">
                     {JSON.stringify(a.parameters, null, 2)}
                   </pre>
                   {a.reason && (
@@ -195,7 +195,7 @@ export default function ApprovalsView() {
                         <button
                           onClick={() => decide(a.id, true)}
                           disabled={acting[a.id]}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+                          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
                         >
                           <Check className="h-3.5 w-3.5" />
                           Approve
@@ -203,7 +203,7 @@ export default function ApprovalsView() {
                         <button
                           onClick={() => decide(a.id, false)}
                           disabled={acting[a.id]}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
+                          className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/20 disabled:opacity-50"
                         >
                           <X className="h-3.5 w-3.5" />
                           Reject
